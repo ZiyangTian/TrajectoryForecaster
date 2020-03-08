@@ -74,7 +74,7 @@ def run_on_one_worker(raw_config, cluster, task_type, task_index):
     """
     config = copy.deepcopy(raw_config)
     config.tf_config = {'cluster': cluster, 'task': {'type': task_type, 'index': task_index}}
-    typing_utils.attrdict_to_json(config.)
+    typing_utils.attrdict_to_json(config)
 
     raw_config.run.distribute.update(task={'type': task_type, 'index': task_index})
     job = modes.get_job(raw_config, build=True)
@@ -133,7 +133,7 @@ def run_on_multi_workers(config, job_dir):
         if os.path.exists(mng.description_file):
             with open(mng.description_file, 'r') as f:
                 content = f.readlines()
-                if mng.
+                #if mng.
 
 
 def main():

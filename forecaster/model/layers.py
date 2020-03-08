@@ -10,11 +10,11 @@ from forecaster.math.diff import diff_1_pad
 
 
 class Uniform(tf.keras.layers.Layer):
-    def __init__(self, centre, bound,
+    def __init__(self, centre=None, bound=None,
                  name=None, dtype=tf.float32, **kwargs):
         super(Uniform, self).__init__(name=name, dtype=dtype, **kwargs)
-        self._centre = centre
-        self._bound = bound
+        self._centre = centre or 1.
+        self._bound = bound or 1.
 
     def call(self, inputs, **kwargs):
         centre, bound = tf.convert_to_tensor(self._centre), tf.convert_to_tensor(self._bound)
@@ -22,11 +22,11 @@ class Uniform(tf.keras.layers.Layer):
 
 
 class Restore(tf.keras.layers.Layer):
-    def __init__(self, centre, bound,
+    def __init__(self, centre=None, bound=None,
                  name=None, dtype=tf.float32, **kwargs):
         super(Restore, self).__init__(name=name, dtype=dtype, **kwargs)
-        self._centre = centre
-        self._bound = bound
+        self._centre = centre or 1.
+        self._bound = bound or 1.
 
     def call(self, inputs, **kwargs):
         centre, bound = tf.convert_to_tensor(self._centre), tf.convert_to_tensor(self._bound)
@@ -34,7 +34,7 @@ class Restore(tf.keras.layers.Layer):
 
 
 class UniformDiff(tf.keras.layers.Layer):
-    def __init__(self, centre, bound, diff_axis,
+    def __init__(self, centre=None, bound=None, diff_axis=-1,
                  name=None, dtype=tf.float32, **kwargs):
         super(UniformDiff, self).__init__(name=name, dtype=dtype, **kwargs)
         self._diff_axis = diff_axis
