@@ -14,7 +14,7 @@ def slice_from_axis(value, begin=None, end=None, stride=None,
             value: An N-D `Tensor` with a known rank.
             begin: An `int` scalar `Tensor` like, slice beginning position. Defaults to slice
                 from the head.
-            end: An `int` scalar `Tensor` like, slice endding position. Defaults to slice
+            end: An `int` scalar `Tensor` like, slice ending position. Defaults to slice
                 until the tail.
             stride: An `int`, axis to slice along.
             axis: An `int`, axis to slice along.
@@ -25,6 +25,9 @@ def slice_from_axis(value, begin=None, end=None, stride=None,
     """
     value = tf.convert_to_tensor(value)
     dim = len(value.shape)
+    if axis < 0:
+        axis = dim + axis
+
     all_mask = (1 << dim) - 1
     spec_mask = all_mask ^ 1 << axis
 

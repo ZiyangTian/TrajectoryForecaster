@@ -46,3 +46,8 @@ def map_between_shuffled(tensor, dtype=None, name=None):
         snd = shuffled_link[:, 0]
         mapping = shuffled_link[:, 1]
     return fst, snd, mapping
+
+
+
+
+

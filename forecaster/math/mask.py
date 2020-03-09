@@ -98,7 +98,7 @@ def middle_sequence_mask(seq_len, mask_spec, mask_start_pos=None, name=None):
     return mask_sequence
 
 
-def random_tensor_mask(shape, axis, seq_mask_fn, mask_spec, return_pos=False, name=None):
+def random_tensor_mask(shape, axis, seq_mask_fn, mask_spec, name=None):
     """ Create mask along `axis` dimension of `tensor` shaped (d_0, d_1, ..., d_axis, ...).
         Arguments:
             shape: A `TensorShape` like, shape of tensor to be masked.
@@ -111,8 +111,6 @@ def random_tensor_mask(shape, axis, seq_mask_fn, mask_spec, return_pos=False, na
                     Returns
                         A 1-D `Tensor`, representing the sequence mask.
             mask_spec: A mask spec that feed into `seq_mask_fn` as an argument.
-            return_pos: If true, also return mask starting positions and ending positions.
-                Defaults to false.
             name: A `str`, OP name, defaults to "random_tensor_mask".
     """
     with tf.name_scope(name or 'random_tensor_mask'):

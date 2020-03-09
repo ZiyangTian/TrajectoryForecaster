@@ -182,7 +182,7 @@ class RawDataSpec(collections.namedtuple(
         Arguments:
             column_names: A sequence of `str`, column names that match the titles in the CSV files.
             column_defaults: A sequence , default column values that match `column_names`.
-            stride: An `int`, stride for data sampling.
+            stride: An `int`, stride for data down-sampling.
             file_length: An `int`, number of samples in a single data file.
             csv_with_header: A `bool`, whether the CSV files have column headers.
     """
@@ -225,7 +225,7 @@ def sequence_dataset(columns_specs,
             columns_specs: A(n) (container of) `ColumnsSpec` instances.
             data_files: A `str` or an 1-D `tf.string` `Tensor` like, data file name(s).
             raw_data_spec: An instance of `RawDataSpec`.
-            shift: An `int`, use sample every this number of raw samples.
+            shift: An `int`, the forward shift of the sliding window.
             shuffle_files: A `bool`, whether to shuffle data files.
             name: A `str`, OP name, defaults to "sequence_dataset".
             kwargs: Keyword arguments to create the `CsvDataset`.

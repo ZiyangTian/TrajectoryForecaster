@@ -47,9 +47,10 @@ class EncoderLayer(tf.keras.layers.Layer):
         :return:
         """
         del training
+        del mask
         q = self._pooling(self._conv(inputs))
         k = v = self._rnn(inputs)
-        attention_output, _ = scaled_dot_product_attention(q, k, v, mask=mask)
+        attention_output, _ = scaled_dot_product_attention(q, k, v)
         outputs = self._layer_norm(attention_output)
         return outputs
 
@@ -138,29 +139,54 @@ class SequenceSelfEncoder(tf.keras.layers.Layer):
                  decoder_hidden_sizes,
                  decoder_strides,
                  decoder_kernel_sizes,
+                 target_size,
                  uniform_centre=None,
                  uniform_bound=None,
+                 restore_centre=None,
+                 restore_bound=None,
                  name=None):
         super(SequenceSelfEncoder, self).__init__(name=name or 'sequence_self_encoder')
-        self._uniform_diff = layers.UniformDiff(uniform_centre, uniform_bound, diff_axis=1)
+        self._fake_features = None
+        self._uniform = layers.Uniform(uniform_centre, uniform_bound)
+        self._diff = layers.Diff([1], axis=-2, padding_value=None, group_axis=False)
+        self._concatenate = tf.keras.layers.Concatenate()
         self._encoder = Encoder(encoder_hidden_sizes, encoder_pooling_sizes, encoder_kernel_sizes)
         self._decoder = Decoder(decoder_hidden_sizes, decoder_strides, decoder_kernel_sizes)
-        self._restore = layers.Restore(uniform_centre, uniform_bound)
+        self._dense = tf.keras.layers.Dense(target_size)
+        self._restore = layers.Restore(restore_centre, restore_bound)
 
-    @staticmethod
-    def _apply_mask(inputs, mask=None):
+    @property
+    def fake_features(self):
+        return self._fake_features
+
+    def _apply_mask(self, inputs, mask=None):
+        self._fake_features = self.add_weight(
+            name='fake_features', shape=tf.shape(inputs)[-1:], dtype=inputs.dtype,
+            initializer=None, trainable=True)
         if mask is None:
             return inputs
-        return inputs  # TODO:...
+        masked_inputs = tf.where(
+            tf.cast(mask, tf.bool),
+            inputs, tf.broadcast_to(self._fake_features, tf.shape(inputs)))
+        return masked_inputs
 
     def _encode(self, inputs, training=None, mask=None):
-        inputs = self._apply_mask(inputs, mask=mask)
-        return self._encoder(self._uniform_diff(inputs), training=training, mask=mask)
+        del training
+        uniformed_inputs = self._uniform(inputs)
+        masked_inputs = self._apply_mask(uniformed_inputs, mask=mask)
+        diffed_inputs = tf.squeeze(self._diff(masked_inputs), axis=0)
+        if mask is None:
+            mask = tf.ones_like(inputs)
+        mask = tf.cast(mask, inputs.dtype)
+        inputs = self._concatenate([masked_inputs, diffed_inputs, mask])
+        encoded = self._encoder(inputs)
+        return encoded
 
     def _decode(self, inputs, training=None, mask=None):
         del training
         del mask
-        outputs = self._decoder(inputs, training=training, mask=mask)
+        outputs = self._decoder(inputs)
+        outputs = self._dense(outputs)
         outputs = self._restore(outputs)
         return outputs
 
@@ -180,12 +206,20 @@ class SequenceSelfEncoder(tf.keras.layers.Layer):
 
 
 x = tf.constant(1., shape=(3, 40, 14))
-encoder = Encoder([32, 64], [4, 10], [5, 5],)
-outputs = encoder(x)
-print(outputs.shape)
-decoder = Decoder([32, 7], [10, 2], [5, 5])
-outputs = decoder(outputs)
-print(outputs.shape)
+mask = tf.random.uniform((3, 40, 14), minval=0, maxval=2, dtype=tf.int32)
+model = SequenceSelfEncoder(
+    [32, 64], [4, 10], [5, 5],
+    [32, 7], [10, 2], [5, 5],
+    3, 1., 1., 2., 2.)
+y = model(x, mask=mask)
+
+
+# encoder = Encoder([32, 64], [4, 10], [5, 5],)
+# outputs = encoder(x)
+# print(outputs.shape)
+# decoder = Decoder([32, 7], [10, 2], [5, 5])
+# outputs = decoder(outputs)
+# print(outputs.shape)
 # layer = DecoderLayer(20, 3, 5)
 # a = tf.constant(1., shape=(2, 1, 100))
 # b = layer(a)

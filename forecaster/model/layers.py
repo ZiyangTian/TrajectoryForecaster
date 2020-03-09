@@ -4,9 +4,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import functools
 import tensorflow as tf
 
 from forecaster.math.diff import diff_1_pad
+from forecaster.math.diff import diff_pad
 
 
 class Uniform(tf.keras.layers.Layer):
@@ -33,6 +35,17 @@ class Restore(tf.keras.layers.Layer):
         return inputs * bound + centre
 
 
+class Diff(tf.keras.layers.Layer):
+    def __init__(self, orders, axis=0, padding_value=None, group_axis=None, name=None):
+        super(Diff, self).__init__(name=name or 'diff')
+        self._diff_fn = functools.partial(
+            diff_pad, orders=orders, axis=axis, padding_value=padding_value, group_axis=group_axis)
+
+    def call(self, inputs, **kwargs):
+        del kwargs
+        return self._diff_fn(inputs)
+
+
 class UniformDiff(tf.keras.layers.Layer):
     def __init__(self, centre=None, bound=None, diff_axis=-1,
                  name=None, dtype=tf.float32, **kwargs):
@@ -42,6 +55,7 @@ class UniformDiff(tf.keras.layers.Layer):
         self._concatenate = tf.keras.layers.Concatenate(axis=-1)
 
     def call(self, inputs, **kwargs):
+        del kwargs
         uniformed_inputs = self._uniform(inputs)
         diff_inputs = diff_1_pad(uniformed_inputs, axis=self._diff_axis)
         return self._concatenate([uniformed_inputs, diff_inputs])
