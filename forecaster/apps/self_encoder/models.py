@@ -187,8 +187,8 @@ class SequenceSelfEncoder(tf.keras.layers.Layer):
         del mask
         outputs = self._decoder(inputs)
         outputs = self._dense(outputs)
-        outputs = self._restore(outputs)
-        return outputs
+        predictions = self._restore(outputs)
+        return predictions, outputs
 
     def call(self, inputs, training=None, mask=None, mode=None):
         if mode is None:

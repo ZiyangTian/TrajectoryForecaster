@@ -44,21 +44,22 @@ def uniform_random_feature_mask(seq_len, num_features,
 
 
 def _apply_sequence_mask(feature_tensor, min_mask_len, max_mask_len):
+    """ feature_tensor: (seq_len, num_features) """
     with tf.name_scope('apply_sequence_mask'):
         shape = tf.shape(feature_tensor)
         mask_sequence = uniform_random_sequence_mask(
-            shape[1], min_mask_len=min_mask_len, max_mask_len=max_mask_len)
-        full_mask = tf.transpose(tf.broadcast_to(mask_sequence, (shape[0], shape[2], shape[1])), perm=(0, 2, 1))
+            shape[0], min_mask_len=min_mask_len, max_mask_len=max_mask_len)
+        full_mask = tf.transpose(tf.broadcast_to(mask_sequence, (shape[1], shape[0])))
         masked_tensor = tf.where(full_mask, feature_tensor, tf.zeros_like(feature_tensor, dtype=feature_tensor.dtype))
     return masked_tensor, full_mask
 
 
 def _apply_feature_mask(feature_tensor, min_mask_len, max_mask_len):
+    """ feature_tensor: (seq_len, num_features) """
     with tf.name_scope('apply_feature_mask'):
         shape = tf.shape(feature_tensor)
-        mask = uniform_random_feature_mask(
-            shape[1], shape[2], min_mask_len=min_mask_len, max_mask_len=max_mask_len)
-        full_mask = tf.broadcast_to(mask, shape)
+        full_mask = uniform_random_feature_mask(
+            shape[0], shape[1], min_mask_len=min_mask_len, max_mask_len=max_mask_len)
         masked_tensor = tf.where(full_mask, feature_tensor, tf.zeros_like(feature_tensor, dtype=feature_tensor.dtype))
     return masked_tensor, full_mask
 
@@ -97,5 +98,31 @@ def build_dataset(data_files,
     return dataset
 
 
-a = tf.constant(1., )
-print(uniform_random_feature_mask(10, 5, 3, 4, tf.int32).numpy())
+# a = tf.constant(1., )
+# print(uniform_random_feature_mask(10, 5, 3, 4, tf.int32).numpy())
+
+# feature_tensor = tf.constant(1., shape=(10, 10))
+# tensor, mask = _apply_feature_mask(feature_tensor, 3, 5)
+# print(tensor.numpy(), mask.numpy())
+
+raw_data_spec = sequence.RawDataSpec(['c0', 'c1', 'c2'], [0., 0., 0.], 1, 30, False)
+data_files = ['1.csv']
+dataset = build_dataset(
+    data_files,
+    raw_data_spec,
+    2,
+    ['c0', 'c1'],
+    ['c2'],
+    4,
+    2,
+    3,
+    1,
+    2,
+    feature_masked_ratio=0.5,
+    shuffle_buffer_size=None,
+    shuffle_files=False)
+for x in dataset:
+    tf.print('full:', x['full'].numpy())
+    tf.print('masked:', x['masked'].numpy())
+    tf.print('mask:', x['mask'].numpy())
+    tf.print()

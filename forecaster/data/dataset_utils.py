@@ -75,8 +75,9 @@ def windowed_dataset(dataset,
 
     with tf.name_scope(name or 'windowed_dataset'):
         sorted_names = None
-        if type(dataset.output_types) is dict:
-            sorted_names = sorted(dataset.output_types.keys())
+        output_types = tf.compat.v1.data.get_output_types(dataset)
+        if type(output_types) is dict:
+            sorted_names = sorted(output_types.keys())
             dataset = feature_selected_dataset(dataset, sorted_names, output_is_tuple=True)
         if block_size is None:
             tuple_dataset = map_fn(dataset)
@@ -84,7 +85,8 @@ def windowed_dataset(dataset,
             tuple_dataset = dataset.batch(block_size, drop_remainder=drop_remained_block).flat_map(map_fn)
 
         # Since `map_fn` deems inputs as a tuple, the output type should be recovered if necessary.
-        dataset = tuple_dataset if type(dataset.output_types) is tuple else tuple_dataset.map(lambda *f: f[0])
+        dataset = tuple_dataset if type(tf.compat.v1.data.get_output_types(dataset)) is tuple \
+            else tuple_dataset.map(lambda *f: f[0])
         if sorted_names is not None:
             dataset = named_dataset(dataset, sorted_names)
     return dataset

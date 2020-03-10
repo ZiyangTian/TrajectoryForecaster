@@ -181,3 +181,13 @@ def min_destination_deviation(labels,
             destination_deviations,
             metrics_collections=metrics_collections,
             updates_collections=updates_collections)
+
+
+def _max_deviation(y_true, y_pred):
+    return tf.keras.backend.mean(_deviations_in_batch(y_true, y_pred))
+
+
+
+
+def get_keras_metrics(*identifies):
+    pass
