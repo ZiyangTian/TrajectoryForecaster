@@ -1,0 +1,19 @@
+{
+	"name": "data",
+	"train_dir": "",
+	"eval_dir": "",
+	"test_dir": "",
+	"column_names": [
+		"t",
+        "x",
+		"y",
+		"z",
+		"xt",
+		"yt",
+		"zt"
+	],
+	"column_defaults": [],
+	"column_means": [],
+	"column_stds": [],
+	"file_length": 20000
+}

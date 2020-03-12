@@ -34,7 +34,7 @@ app_register = AppRegister
 
 class BaseJob(object):
     def __init__(self, config, build=True):
-        self._config = copy.deepcopy(config)
+        self._config = copy.copy(config)
         data_config = self._config.data
         self._raw_data_spec = sequence.RawDataSpec(
             data_config.columns, data_config.column_defaults,
@@ -68,35 +68,34 @@ class BaseJob(object):
 
     @property
     @abc.abstractmethod
-    def train_input_fn(self):
+    def train_dataset(self):
         raise NotImplementedError('BaseJob.train_input_fn')
 
     @property
     @abc.abstractmethod
-    def eval_input_fn(self):
+    def eval_dataset(self):
         raise NotImplementedError('BaseJob.eval_input_fn')
 
-    def train(self):
-        self.ready()
-        train_config = self._config.run.train
-        return self._model.train(
-            self.train_input_fn,
-            hooks=None,
-            steps=train_config.steps,
-            max_steps=None,
-            saving_listeners=None)
-
-    def evaluate(self):
-        self.ready()
-        eval_config = self._config.run.eval
-        return self._model.evaluate(
-            self.eval_input_fn,
-            steps=eval_config.steps,
-            hooks=None,
-            checkpoint_path=None,
-            name=None)
-
-    def train_eval(self):
+    def fit(self):
+        self._model.fit(
+            self.train_dataset,
+            epochs=1,
+            verbose=2,
+            callbacks=None,
+            validation_split=0.0,
+            validation_data=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
+            validation_freq=1,
+            max_queue_size=10,
+            workers=1,
+            use_multiprocessing=False,
+            **kwargs
+        )
         self.ready()
         train_config = self._config.run.train
         eval_config = self._config.run.eval

@@ -1,0 +1,66 @@
+{
+	"data": {
+		"input_features": [
+			"t",
+            "x",
+			"y",
+			"z",
+			"xt",
+			"yt",
+			"zt"
+		],
+		"target_features": [
+			"x",
+			"y",
+			"z"
+		],
+		"seq_len": 50,
+        "shift": 10,
+        "min_seq_mask_len":  10,
+        "max_seq_mask_len":  25,
+        "min_feature_mask_len": 10,
+        "max_feature_mask_len": 25,
+        "feature_masked_ratio": 0.3
+    },
+	"model": {
+		"params": {
+			"encoder_hidden_sizes": [],
+			"encoder_pooling_sizes": [],
+			"encoder_kernel_sizes": [],
+			"decoder_hidden_sizes": [],
+			"decoder_strides": [],
+			"decoder_kernel_sizes": [],
+			"target_size": 3
+		},
+		"optimizer": {
+			"name": "adam",
+			"learning_rate": 0.001
+		}
+	},
+	"run": {
+		"train": {
+			"batch_size": 128,
+			"epochs": 5,
+			"save_every_steps": 100,
+			"keep_best_ckpt": true
+		},
+		"eval": {
+			"batch_size": 128
+		}
+	},
+    "distribute": {
+        "tf_config": {
+            "cluster": {
+                "worker": [
+                    "localhost:12345",
+                    "localhost:23456"
+                ]
+            },
+            "task": {
+                "type": "worker",
+                "index": 0
+            }
+        },
+        "communication": "NCCL"
+    }
+}
