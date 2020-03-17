@@ -40,27 +40,32 @@
 	"run": {
 		"train": {
 			"batch_size": 128,
-			"epochs": 5,
-			"save_every_steps": 100,
+            "steps": 30000,
 			"keep_best_ckpt": true
 		},
 		"eval": {
-			"batch_size": 128
-		}
-	},
-    "distribute": {
-        "tf_config": {
-            "cluster": {
-                "worker": [
-                    "localhost:12345",
-                    "localhost:23456"
-                ]
-            },
-            "task": {
-                "type": "worker",
-                "index": 0
-            }
+			"batch_size": 128,
+            "steps": 1000,
+            "every_training_steps": 1000
+		},
+        "save": {
+			"save_summary_steps": 100,
+            "save_checkpoints_every": 1000
         },
-        "communication": "NCCL"
-    }
+        "distribute": {
+             "type": null,
+             "tf_config": {
+                 "cluster": {
+                     "worker": [
+                         "localhost:12345",
+                         "localhost:23456"
+                     ]
+                 },
+                 "task": {
+                     "type": "worker",
+                     "index": 0
+                 }
+             }
+        }
+	}
 }

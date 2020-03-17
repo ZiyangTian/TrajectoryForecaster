@@ -10,8 +10,8 @@ from forecaster.run import keys
 
 
 def define_flags_for_distribution():
-    tf.flags.DEFINE_string('_type', None, 'Task type for distributed running.')
-    tf.flags.DEFINE_string('_index', None, 'Task type for distributed running.')
+    tf.flags.DEFINE_string('type', None, 'Task type for distributed running.')
+    tf.flags.DEFINE_string('index', None, 'Task type for distributed running.')
 
 
 def define_flags():

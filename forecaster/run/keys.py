@@ -6,7 +6,8 @@ import enum
 class RunningKeys(enum.Enum):
     train = 'train'
     evaluate = 'evaluate'
-    fit = 'fit'
+    fit = 'fit'  # For keras running.
+    train_eval = 'train_eval'  # For estimator running.
     predict = 'predict'
 
 

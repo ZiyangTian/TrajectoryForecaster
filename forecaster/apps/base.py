@@ -5,9 +5,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import abc
-import copy
 import json
 import os
+import attrdict
 import tensorflow as tf
 
 from forecaster import apps
@@ -32,31 +32,42 @@ class AppRegister(object):
 app_register = AppRegister
 
 
-class BaseJob(object):
-    def __init__(self, config, build=True):
-        self._config = copy.copy(config)
-        data_config = self._config.data
-        self._raw_data_spec = sequence.RawDataSpec(
-            data_config.columns, data_config.column_defaults,
-            data_config.stride, data_config.file_length, False)
-        self._model = None
-        self._ready = False
-        if build:
-            self._build()
+class AbstractApp(object):
+    """Base class for applications.
+    Arguments:
+        config: A `dict` like, configuration to build the job.
+    """
+    _engine_schema = None  # Reserved for schema.
 
-    _engine_schema = None
+    def __init__(self, config):
+        self._config = attrdict.AttrDict(config)
+        self._model = None
+        self._build()
 
     @abc.abstractmethod
     def build(self):
-        raise NotImplementedError('BaseJob.build')
+        """Build `_model` and compile, do not include distribute strategy.
+        Code example:
+            self._model = tf.keras.Model(...)
+            self._model.compile(...)
+        """
+        raise NotImplementedError('AbstractApp.build')
 
-    def _build(self):
-        self.build()
-        self._ready = True
+    @property
+    @abc.abstractmethod
+    def train_input_fn(self):
+        """Function which takes no argument and return a `Dataset` for training, which can
+            be used in an `Estimator`. See `input_fn` in `tf.estimator.Estimator.train`.
+        """
+        raise NotImplementedError('BaseJob.train_input_fn')
 
-    def ready(self):
-        if not self._ready:
-            raise RuntimeError('%s is not ready.' % str(self.__class__))
+    @property
+    @abc.abstractmethod
+    def eval_input_fn(self):
+        """Function which takes no argument and return a `Dataset` for evaluation, which can
+            be used in an `Estimator`. See `input_fn` in `tf.estimator.Estimator.eval`.
+        """
+        raise NotImplementedError('BaseJob.eval_input_fn')
 
     @property
     def config(self):
@@ -66,20 +77,11 @@ class BaseJob(object):
     def model(self):
         return self._model
 
-    @property
-    @abc.abstractmethod
-    def train_dataset(self):
-        raise NotImplementedError('BaseJob.train_input_fn')
-
-    @property
-    @abc.abstractmethod
-    def eval_dataset(self):
-        raise NotImplementedError('BaseJob.eval_input_fn')
-
     def fit(self):
+        run_config = self._config.run
         self._model.fit(
-            self.train_dataset,
-            epochs=1,
+            self.train_input_fn(),
+            epochs=run_config.train.,
             verbose=2,
             callbacks=None,
             validation_split=0.0,
@@ -93,9 +95,7 @@ class BaseJob(object):
             validation_freq=1,
             max_queue_size=10,
             workers=1,
-            use_multiprocessing=False,
-            **kwargs
-        )
+            use_multiprocessing=False)
         self.ready()
         train_config = self._config.run.train
         eval_config = self._config.run.eval
@@ -115,17 +115,28 @@ class BaseJob(object):
     def predict(self):
         tf.logging.info('Optional method `%s.predict` is not implemented. Nothing done.' % str(self.__class__))
 
-    def generate(self):
-        tf.logging.info('Optional method `%s.generate` is not implemented. Nothing done.' % str(self.__class__))
+    def _build(self):
+        """
+        "distribute": {
+             "type": null,
+             "tf_config": {
+                 "cluster": {
+                     "worker": [
+                         "localhost:12345",
+                         "localhost:23456"
+                     ]
+                 },
+                 "task": {
+                     "type": "worker",
+                     "index": 0
+                 }
+             }
+        }
+        """
+        distribute_config = self._model.run.distribute
+        if distribute_config.type is None:
+            return self.build()
 
-    def present(self):
-        tf.logging.info('Optional method `%s.present` is not implemented. Nothing done.' % str(self.__class__))
-
-    def plot(self):
-        tf.logging.info('Optional method `%s.plot` is not implemented. Nothing done.' % str(self.__class__))
-
-    def history(self):
-        tf.logging.info('Optional method `%s.history` is not implemented. Nothing done.' % str(self.__class__))
 
     def _parse_tf_run_config(self):
         strategy = self._parse_distribute_config()
@@ -143,7 +154,7 @@ class BaseJob(object):
         return strategy
 
     def _parse_summary_config(self):
-        summary_config = copy.deepcopy(self._config.run.get('summary', None))
+        summary_config = self._config.run.get('summary', None).copy()
         if not summary_config:
             return
         save_checkpoints_every = summary_config.pop('save_checkpoints_every', 100)
@@ -155,3 +166,15 @@ class BaseJob(object):
         else:
             raise ValueError('Invalid value of key `save_checkpoints_units`.')
         return summary_config
+
+
+class AbstractSequencesApp(AbstractApp, abc.ABC):
+    def __init__(self, config):
+        super(AbstractSequencesApp, self).__init__(config)
+        data_config = self._config.data
+        self._raw_data_spec = sequence.RawDataSpec(
+            data_config.columns, data_config.column_defaults,
+            data_config.stride, data_config.file_length, False)
+
+
+

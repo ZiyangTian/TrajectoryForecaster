@@ -8,7 +8,7 @@ import tensorflow as tf
 
 
 def denominator_clip(tensor, minimum, name=None):
-    """ Clip a tensor by a specified minimum absolute value.
+    """Clip a tensor by a specified minimum absolute value.
         Arguments:
             tensor: A `Tensor` to be clipped.
             minimum: A `Tensor` with the same type as `tensor` and broadcastable to

@@ -10,7 +10,7 @@ from forecaster.model import optimizers
 
 
 @base.app_register('SelfEncoderJob')
-class SelfEncoderJob(base.BaseJob):
+class SelfEncoderJob(base.AbstractApp):
     def __init__(self, config, build=True):
         super(SelfEncoderJob, self).__init__(config, build=build)
 
