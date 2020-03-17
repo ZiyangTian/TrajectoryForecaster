@@ -243,7 +243,7 @@ def sequence_dataset(columns_specs,
         return columns
 
     with tf.name_scope(name or 'sequence_dataset'):
-        dataset = raw_data_spec.dataset(data_files, shuffle_files, **kwargs)
+        dataset = raw_data_spec.train_dataset(data_files, shuffle_files, **kwargs)
         dataset = dataset_utils.named_dataset(dataset, raw_data_spec.column_names)
         dataset = dataset_utils.windowed_dataset(
             dataset, max_offset, shift=shift, stride=raw_data_spec.stride,
@@ -286,7 +286,7 @@ def multi_sequence_dataset(columns_specs,
 
     def load_data_map_fn(id_tensor):
         file_names_tensor = tf.gather(tf.convert_to_tensor(data_files), id_tensor)
-        seqs_data = raw_data_spec.dataset(file_names_tensor, shuffle=shuffle_files, **kwargs)
+        seqs_data = raw_data_spec.train_dataset(file_names_tensor, shuffle=shuffle_files, **kwargs)
         seqs_data = dataset_utils.windowed_dataset(seqs_data, raw_data_spec.file_length)
         seqs_data = dataset_utils.windowed_dataset(seqs_data, num_seqs)
 
