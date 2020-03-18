@@ -1,0 +1,61 @@
+{
+    "name": "fake",
+    "raw_dir": "/Users/Tianziyang/Desktop/fake.csv",
+    "train_dir": "/Users/Tianziyang/Desktop/fake.csv",
+    "eval_dir": "/Users/Tianziyang/Desktop/fake.csv",
+    "test_dir": "/Users/Tianziyang/Desktop/fake.csv",
+	"columns": [
+	    "t",
+        "x",
+	    "y",
+	    "z",
+	    "xt",
+	    "yt",
+	    "zt"
+    ],
+	"features": {
+		"t": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		},
+		"x": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1332.3335,
+			"std": 2598.44391
+		},
+        "y": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		},
+        "z": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		},
+        "xt": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		},
+        "yt": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		},
+        "zt": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 1999.5,
+			"std": 1154.844867
+		}
+    },
+	"file_length": 4000
+}

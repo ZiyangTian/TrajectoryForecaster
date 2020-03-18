@@ -1,0 +1,1 @@
+from forecaster.apps import fixed_length_forecaster

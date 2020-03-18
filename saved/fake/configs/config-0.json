@@ -1,0 +1,126 @@
+{
+	"app": "fixed_len",
+	"data": {
+		"input_features": [
+			"t",
+			"x",
+			"y",
+			"z",
+			"xt",
+			"yt",
+			"zt"
+		],
+		"target_features": [
+			"x",
+			"y",
+			"z"
+		],
+		"input_seq_len": 50,
+		"output_seq_len": 50
+	},
+	"model": {
+		"hidden_size": 128,
+		"dropout": 0.9,
+		"optimizer": {
+			"type": "adam",
+			"learning_rate": 0.001
+		}
+	},
+	"run": {
+		"train": {
+			"data_shift": 10,
+			"batch_size": 128,
+			"steps": 30000,
+			"shuffle_buffer_size": 10000,
+			"keep_best_ckpt": true
+		},
+		"eval": {
+			"data_shift": 10,
+			"batch_size": 128,
+			"steps": 1000,
+			"shuffle_buffer_size": 10000,
+			"every_training_steps": 1000
+		},
+		"save": {
+			"save_summary_steps": 100,
+			"save_checkpoints_every": 1000
+		},
+		"distribute": {
+			"type": null,
+			"workers": [
+				"localhost: 6001",
+				"localhost: 6002",
+				"localhost: 6003"
+			]
+		}
+	},
+	"path": {
+		"job_dir": "saved/fake",
+		"config_dir": "saved/fake/configs",
+		"log_dir": "saved/fake/logs",
+		"temp_dir": "saved/fake/temp",
+		"presentation_dir": "saved/fake/presentation",
+		"checkpoints_dir": "saved/fake/checkpoints"
+	},
+	"raw_data": {
+		"name": "fake",
+		"raw_dir": "/Users/Tianziyang/Desktop/fake.csv",
+		"train_dir": "/Users/Tianziyang/Desktop/fake.csv",
+		"eval_dir": "/Users/Tianziyang/Desktop/fake.csv",
+		"test_dir": "/Users/Tianziyang/Desktop/fake.csv",
+		"columns": [
+			"t",
+			"x",
+			"y",
+			"z",
+			"xt",
+			"yt",
+			"zt"
+		],
+		"features": {
+			"t": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			},
+			"x": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1332.3335,
+				"std": 2598.44391
+			},
+			"y": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			},
+			"z": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			},
+			"xt": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			},
+			"yt": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			},
+			"zt": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 1999.5,
+				"std": 1154.844867
+			}
+		},
+		"file_length": 4000
+	}
+}

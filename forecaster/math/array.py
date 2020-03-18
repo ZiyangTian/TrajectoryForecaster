@@ -27,7 +27,7 @@ def slice_assigned(tensor, value,
         shrink_axis_mask:  See `tf.strided_slice`.
         name: A `str`, `OP` name.
     Returns:
-        A `Tensor` with the same shape with `tensor`. The value of `tensor` will not change.
+        A `Tensor` with the same shape with `tensor`.
     """
     with tf.name_scope(name or 'slice_assigned'):
         tensor = tf.convert_to_tensor(tensor)
@@ -40,7 +40,10 @@ def slice_assigned(tensor, value,
             begin_mask=begin_mask, end_mask=end_mask,
             ellipsis_mask=ellipsis_mask, new_axis_mask=new_axis_mask,
             shrink_axis_mask=shrink_axis_mask)
-        tf.assert_equal(tf.shape(index_slice), tf.shape(value))
+        tf.debugging.assert_equal(
+            tf.shape(index_slice), tf.shape(value),
+            message='The value to assign must have the same shape with the tensor to be assigned.')
+
         flattened_index_slice = tf.expand_dims(tf.keras.backend.flatten(index_slice), -1)
         flattened_value = tf.keras.backend.flatten(value)
         scattered_value = tf.scatter_nd(flattened_index_slice, flattened_value, (tensor_size,))
@@ -54,21 +57,21 @@ def slice_assigned(tensor, value,
     return assigned_tensor
 
 
-def element_assigned(tensor, value, position, name=None):
+def element_assigned(tensor, value, index, name=None):
     """Create a tensor by assigning values to an element.
     Arguments:
         tensor: A `Tensor` like, the tensor to be assigned value to.
         value: A `Tensor` scalar like, the value to assign. Must has the same data type with `tensor`.
-        position: A 1-D `int` `Tensor` like, representing the element position to assign.
+        index: An 1-D `int` `Tensor` like, representing the element position to assign.
         name: A `str`, `OP` name.
     Returns:
-        A `Tensor` with the same shape with `tensor`. The value of `tensor` will not change.
+        A `Tensor` with the same shape with `tensor`.
     """
     with tf.name_scope(name or 'element_assigned'):
-        position = tf.convert_to_tensor(position)
-        begin = position
-        end = position + tf.ones_like(position)
-        shrink_axis_mask = tf.bitwise.left_shift(1, tf.rank(tensor) + 1) - 1
+        index = tf.convert_to_tensor(index)
+        begin = index
+        end = index + tf.ones_like(index)
+        shrink_axis_mask = (1 << len(tensor.shape) + 1) - 1
         assigned_tensor = slice_assigned(tensor, value, begin, end, shrink_axis_mask=shrink_axis_mask)
     return assigned_tensor
 
@@ -82,45 +85,42 @@ def slice_from_axis(value, begin=None, end=None, stride=None,
             from the head.
         end: An `int` scalar `Tensor` like, slice ending position. Defaults to slice
             until the tail.
-        stride: An `int` scalar `Tensor` like, axis to slice along.
-        axis: An `int` scalar `Tensor` like, axis to slice along.
-        shrink: A `bool` scalar `Tensor` like, whether to squeeze the dimension.
+        stride: An `int`, axis to slice along.
+        axis: An `int`, axis to slice along.
+        shrink: A `bool`, whether to squeeze the dimension.
         name: A `str`, OP name, defaults to "slice_from_axis".
     Returns:
         A sliced `Tensor`.
     """
-    with tf.name_scope(name or 'slice_from_axis'):
-        value = tf.convert_to_tensor(value)
-        rank = tf.rank(value)
-        axis = tf.cond(
-            axis < 0,
-            lambda: rank + axis,
-            lambda: axis)
+    value = tf.convert_to_tensor(value)
+    dim = len(value.shape)
+    if axis < 0:
+        axis = dim + axis
 
-        all_mask = tf.bitwise.left_shift(1, rank) - 1
-        spec_mask = tf.bitwise.bitwise_xor(all_mask, tf.bitwise.left_shift(1, axis))
+    all_mask = (1 << dim) - 1
+    spec_mask = all_mask ^ 1 << axis
 
-        begins = tf.zeros((rank,), dtype=tf.int32)
-        if begin is None:
-            begin_mask = all_mask
-        else:
-            begins = element_assigned(begins, begin, (axis,))
-            begin_mask = spec_mask
+    begins = [0] * dim
+    if begin is None:
+        begin_mask = all_mask
+    else:
+        begins[axis] = begin
+        begin_mask = spec_mask
 
-        ends = tf.zeros([rank], dtype=tf.int32)
-        if end is None:
-            end_mask = all_mask
-        else:
-            ends = element_assigned(ends, end, (axis,))
-            end_mask = spec_mask
+    ends = [0] * dim
+    if end is None:
+        end_mask = all_mask
+    else:
+        ends[axis] = end
+        end_mask = spec_mask
 
-        strides = tf.ones((rank,), dtype=tf.int32)
-        if stride is not None:
-            strides = element_assigned(strides, stride, (axis,))
-        shrink_mask = tf.cond(
-            shrink,
-            lambda: tf.bitwise.invert(spec_mask),
-            lambda: tf.bitwise.invert(all_mask))
+    strides = [1] * dim
+    if stride is not None:
+        strides[axis] = stride
+
+    shrink_mask = ~all_mask
+    if shrink:
+        shrink_mask = ~spec_mask
 
     return tf.strided_slice(
         value, begins, ends,

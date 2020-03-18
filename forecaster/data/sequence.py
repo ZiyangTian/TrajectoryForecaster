@@ -243,7 +243,7 @@ def sequence_dataset(columns_specs,
         return columns
 
     with tf.name_scope(name or 'sequence_dataset'):
-        dataset = raw_data_spec.train_dataset(data_files, shuffle_files, **kwargs)
+        dataset = raw_data_spec.dataset(data_files, shuffle_files, **kwargs)
         dataset = dataset_utils.named_dataset(dataset, raw_data_spec.column_names)
         dataset = dataset_utils.windowed_dataset(
             dataset, max_offset, shift=shift, stride=raw_data_spec.stride,

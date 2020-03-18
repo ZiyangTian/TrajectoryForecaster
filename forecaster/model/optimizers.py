@@ -4,7 +4,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
 import tensorflow as tf
 
 
@@ -21,6 +20,6 @@ _REGISTERED_OPTIMIZERS = {
 
 
 def get_optimizer(config):
-    config = copy.deepcopy(config)
-    optimizer_type = config.pop['type']
+    config = config.copy()
+    optimizer_type = config.pop('type')
     return _REGISTERED_OPTIMIZERS[optimizer_type](**config)

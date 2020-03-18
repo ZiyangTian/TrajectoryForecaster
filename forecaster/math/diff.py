@@ -70,7 +70,7 @@ def diff_pad(value, orders, axis=0, padding_value=None, group_axis=None, name=No
             diff_tensor = diff_tensors[i]
             if padding_value is None:
                 padding_tensor = tf.stack(
-                    [array.slice_from_axis(diff_tensor, begin=0, axis=axis, shrink=True) for _ in  range(order)],
+                    [array.slice_from_axis(diff_tensor, begin=0, axis=axis, shrink=True) for _ in range(order)],
                     axis=axis)
             else:
                 padding_tensor = tf.fill(

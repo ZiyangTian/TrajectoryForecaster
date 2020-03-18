@@ -4,11 +4,10 @@ import enum
 
 @enum.unique
 class RunningKeys(enum.Enum):
-    train = 'train'
-    evaluate = 'evaluate'
-    fit = 'fit'  # For keras running.
-    train_eval = 'train_eval'  # For estimator running.
-    predict = 'predict'
+    TRAIN = 'train'
+    EVAL = 'evaluate'
+    TRAIN_EVAL = 'train_eval'  # For keras running.
+    PREDICT = 'predict'
 
 
 @enum.unique

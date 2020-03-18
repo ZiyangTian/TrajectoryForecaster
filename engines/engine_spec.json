@@ -1,0 +1,66 @@
+{
+    "app": "fixed_len",
+    "job_dir": "",
+    "raw_data": {},
+	"data": {
+		"input_features": [
+			"t",
+            "x",
+			"y",
+			"z",
+			"xt",
+			"yt",
+			"zt"
+		],
+		"target_features": [
+			"x",
+			"y",
+			"z"
+		],
+		"input_seq_len": 50,
+        "output_seq_len": 50
+    },
+	"model": {
+		"hidden_size": 128,
+        "dropout": 0.9,
+		"optimizer": {
+			"type": "adam",
+			"learning_rate": 0.001
+		}
+	},
+	"run": {
+		"train": {
+            "data_shift": 10,
+			"batch_size": 128,
+            "steps": 30000,
+            "shuffle_buffer_size": 10000,
+			"keep_best_ckpt": true
+		},
+		"eval": {
+            "data_shift": 10,
+			"batch_size": 128,
+            "steps": 1000,
+            "shuffle_buffer_size": 10000,
+            "every_training_steps": 1000
+		},
+        "save": {
+			"save_summary_steps": 100,
+            "save_checkpoints_every": 1000
+        },
+        "distribute": {
+            "type": null,
+            "tf_config": {
+                "cluster": {
+                    "worker": [
+                        "localhost:12345",
+                        "localhost:23456"
+                    ]
+                },
+                "task": {
+                    "type": "worker",
+                    "index": 0
+                }
+            }
+        }
+	}
+}

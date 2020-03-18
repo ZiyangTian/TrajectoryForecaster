@@ -59,8 +59,8 @@ class DestinationDeviation(MeanMetricWrapper):
 
 def get_metrics(*string_identifies, dtype=None):
     _metrics = {
-        'max_deviation': MaxDeviation(dtype=dtype),
-        'mean_deviation': MeanDeviation(dtype=dtype),
-        'min_deviation': MinDeviation(dtype=dtype),
-        'destination_deviation': DestinationDeviation(dtype=dtype)}
+        'max_deviation': MaxDeviation,
+        'mean_deviation': MeanDeviation,
+        'min_deviation': MinDeviation,
+        'destination_deviation': DestinationDeviation}
     return list(map(lambda k: _metrics[k], string_identifies))

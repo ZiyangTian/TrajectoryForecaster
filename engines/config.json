@@ -14,13 +14,8 @@
 			"y",
 			"z"
 		],
-		"seq_len": 50,
-        "shift": 10,
-        "min_seq_mask_len":  10,
-        "max_seq_mask_len":  25,
-        "min_feature_mask_len": 10,
-        "max_feature_mask_len": 25,
-        "feature_masked_ratio": 0.3
+		"input_seq_len": 50,
+        "output_seq_len": 50
     },
 	"model": {
 		"params": {
