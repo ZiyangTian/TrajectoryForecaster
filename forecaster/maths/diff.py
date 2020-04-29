@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 
 import tensorflow as tf
 
-from forecaster.math import array
+from forecaster.maths import array
 from utils import typing as os_typing
 
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from data_generator.anomaly_detection import environment
+from data.anomaly_detection import environment
 
 
 ANOMALY = {}

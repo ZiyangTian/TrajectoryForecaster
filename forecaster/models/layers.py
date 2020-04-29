@@ -7,8 +7,18 @@ from __future__ import unicode_literals
 import functools
 import tensorflow as tf
 
-from forecaster.math.diff import diff_1_pad
-from forecaster.math.diff import diff_pad
+from forecaster.maths.diff import diff_1_pad
+from forecaster.maths.diff import diff_pad
+
+
+class FunctionWrapper(tf.keras.layers.Layer):
+    def __init__(self, fn, name=None, **kwargs):
+        super(FunctionWrapper, self).__init__(name=name or 'function_wrapper', **kwargs)
+        self._fn = fn
+
+    def call(self, inputs, **kwargs):
+        del kwargs
+        return self._fn(inputs)
 
 
 class Uniform(tf.keras.layers.Layer):
@@ -35,15 +45,15 @@ class Restore(tf.keras.layers.Layer):
         return inputs * bound + centre
 
 
-class Diff(tf.keras.layers.Layer):
-    def __init__(self, orders, axis=0, padding_value=None, group_axis=None, name=None):
-        super(Diff, self).__init__(name=name or 'diff')
+class Diff1d(tf.keras.layers.Layer):
+    def __init__(self, axis=-1, padding_value=None, name=None):
+        super(Diff1d, self).__init__(name=name or 'diff_1d')
         self._diff_fn = functools.partial(
-            diff_pad, orders=orders, axis=axis, padding_value=padding_value, group_axis=group_axis)
+            diff_pad, orders=[1], axis=axis, padding_value=padding_value, group_axis=None)
 
     def call(self, inputs, **kwargs):
         del kwargs
-        return self._diff_fn(inputs)
+        return self._diff_fn(inputs)[0]
 
 
 class UniformDiff(tf.keras.layers.Layer):

@@ -1,4 +1,4 @@
-"""Fixed length forecaster model and app."""
+"""Fixed length forecaster models and app."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -9,9 +9,9 @@ import tensorflow as tf
 
 from forecaster.apps import base as apps_base
 from forecaster.data import sequence
-from forecaster.model import layers
-from forecaster.model import optimizers
-from forecaster.model import metrics
+from forecaster.models import layers
+from forecaster.models import optimizers
+from forecaster.models import metrics
 
 
 class _UniformedMSE(tf.keras.losses.Loss):

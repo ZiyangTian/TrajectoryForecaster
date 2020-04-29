@@ -43,7 +43,7 @@ class AbstractApp(object):
     """Base class for applications.
     Arguments:
         config: A `dict` like, configuration to build the job.
-        warm_start_from: A `str`, representing the saved model file to warm-start from.
+        warm_start_from: A `str`, representing the saved models file to warm-start from.
     """
     _engine_schema = None  # Reserved for schema.
 

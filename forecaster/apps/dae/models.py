@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from forecaster.model import layers
+from forecaster.models import layers
 
 
 def scaled_dot_product_attention(q, k, v, mask=None, name=None):

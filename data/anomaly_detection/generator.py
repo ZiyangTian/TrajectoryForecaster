@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from data_generator.anomaly_detection import environment
-from data_generator.anomaly_detection import anomaly
+from data.anomaly_detection import environment
+from data.anomaly_detection import anomaly
+from utils import os as os_utils
 
 
 class TrajectoryGeneratorConfig(object):
@@ -270,7 +271,7 @@ class TrajectoryGenerator(TrajectoryGeneratorConfig):
             objective.trajectory['vz']).modulus
         trajectory['distance_anomaly'] = np.logical_and(
             np.less(distance, self.dangerous_radius).astype(np.int),
-            np.greater_equal(angle_cosine, 0))
+            np.greater_equal(angle_cosine, 0)).astype(np.int)
         trajectory['height_anomaly'] = np.logical_and(
             np.logical_and(self.dangerous_radius < distance, distance < self.alert_radius),
             height < self.alert_height).astype(np.int)
@@ -281,7 +282,12 @@ class TrajectoryGenerator(TrajectoryGeneratorConfig):
 
         return trajectory
 
-    def generate(self, num, save_in=None):
+    def generate(self, num, save_in=None, verbose=True):
+        if save_in is not None:
+            os_utils.fresh_dir(save_in)
+            self.dump(os.path.join(save_in, 'TrajectoryGenerator.pickle'))
+            os_utils.fresh_dir(os.path.join(save_in, 'raw'))
+
         trajectories = []
         anomaly_types = random.choices(
             ['normal_safe', 'normal_alert', 'anomaly_straight',
@@ -313,7 +319,9 @@ class TrajectoryGenerator(TrajectoryGeneratorConfig):
             else:
                 raise ValueError('Invalid anomaly_type.')
             if save_in is not None and trajectory is not None:
-                trajectory.to_csv(os.path.join(save_in, '{}.csv'.format(n)), index=False)
+                trajectory.to_csv(os.path.join(save_in, 'raw', '{}.csv'.format(n)), index=False)
+            if verbose and (n + 1) % 100 == 0:
+                print('{} generated.'.format((n + 1)))
             trajectories.append(trajectory)
 
         return trajectories
@@ -326,11 +334,13 @@ class TrajectoryGenerator(TrajectoryGeneratorConfig):
             airline.plot(obj, 'r:', color='grey')
 
     def dump(self, file):
-        pickle.dump(self, file)
+        with open(file, 'wb') as f:
+            pickle.dump(self, f)
 
     @classmethod
     def load_from(cls, file):
-        return pickle.load(file)
+        with open(file, 'rb') as f:
+            return pickle.load(f)
 
 
 def display(generator: TrajectoryGenerator, trajectories):

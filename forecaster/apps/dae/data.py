@@ -7,8 +7,8 @@ import tensorflow as tf
 
 # from forecaster.apps import base as app_base
 from forecaster.data import sequence
-# from forecaster.math import uniform
-# from forecaster.model.component import metrics
+# from forecaster.maths import uniform
+# from forecaster.models.component import metrics
 # from utils.os import files_in_dir
 # from utils.typing import normalize_list_of_type
 

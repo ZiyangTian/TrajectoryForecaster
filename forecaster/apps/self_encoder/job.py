@@ -5,8 +5,8 @@ import tensorflow as tf
 from forecaster.apps import base
 from forecaster.apps.self_encoder import data
 from forecaster.apps.self_encoder import models
-from forecaster.model import metrics
-from forecaster.model import optimizers
+from forecaster.models import metrics
+from forecaster.models import optimizers
 
 
 @base.app_register('SelfEncoderJob')
