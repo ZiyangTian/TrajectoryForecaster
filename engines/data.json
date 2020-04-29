@@ -1,9 +1,9 @@
 {
     "name": "fake",
-    "raw_dir": "/Users/Tianziyang/Desktop/fake.csv",
-    "train_dir": "/Users/Tianziyang/Desktop/fake.csv",
-    "eval_dir": "/Users/Tianziyang/Desktop/fake.csv",
-    "test_dir": "/Users/Tianziyang/Desktop/fake.csv",
+    "raw_dir": "/Users/Tianziyang/Desktop/fake",
+    "train_dir": "/Users/Tianziyang/Desktop/fake",
+    "eval_dir": "/Users/Tianziyang/Desktop/fake",
+    "test_dir": "/Users/Tianziyang/Desktop/fake",
 	"columns": [
 	    "t",
         "x",

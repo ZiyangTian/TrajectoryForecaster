@@ -41,7 +41,7 @@ def run_standalone(mode, config, overwrite=False):
     app = apps_base.REGISTERED_APPS[config.app](config)
 
     if overwrite:
-        utils.fresh_dir(config.job_dir)
+        utils.fresh_dir(config.path.checkpoints_dir)
     if mode == keys.RunningKeys.TRAIN.value:
         return app.train()
     if mode == keys.RunningKeys.EVAL.value:

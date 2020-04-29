@@ -7,7 +7,7 @@ def main():
 
     import attrdict
     flags = attrdict.AttrDict()
-    flags.new = False
+    flags.new = 0
     if flags.new:
         flags.job_dir = 'saved/fake'
         flags.engine = 'engines/engine.json'
@@ -18,7 +18,7 @@ def main():
         flags.job_dir = 'saved/fake'
         flags.as_monitor = True  # Do not change.
         flags.engine = 'engines/engine.json'
-        flags.overwrite = False
+        flags.overwrite = True
 
     forecaster.run_with_flags(flags)
 
