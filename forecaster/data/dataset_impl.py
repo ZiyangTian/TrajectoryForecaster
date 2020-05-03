@@ -15,7 +15,7 @@ def named_dataset(dataset, names):
         Returns:
             A `Dataset`.
     """
-    return dataset.map(lambda *features: dict(zip(names, features)))
+    return dataset.map(lambda *features: dict(zip(names, features)), num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def feature_selected_dataset(dataset, selected_feature_names, output_is_tuple=False):
@@ -37,7 +37,7 @@ def feature_selected_dataset(dataset, selected_feature_names, output_is_tuple=Fa
             lambda k: (k, features[k]),
             selected_feature_names))
 
-    return dataset.map(map_fn)
+    return dataset.map(map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 
 def windowed_dataset(dataset,
@@ -86,7 +86,7 @@ def windowed_dataset(dataset,
 
         # Since `map_fn` deems inputs as a tuple, the output type should be recovered if necessary.
         dataset = tuple_dataset if type(tf.compat.v1.data.get_output_types(dataset)) is tuple \
-            else tuple_dataset.map(lambda *f: f[0])
+            else tuple_dataset.map(lambda *f: f[0], num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if sorted_names is not None:
             dataset = named_dataset(dataset, sorted_names)
     return dataset

@@ -2,7 +2,7 @@
 import forecaster
 
 
-def main():
+def run_flags():
     # flags = run_flags.define_flags()
 
     import attrdict
@@ -23,8 +23,17 @@ def main():
     forecaster.run_with_flags(flags)
 
 
-def data_preprocess():
-    import data
+def main():
+    import utils
+    import tensorflow as tf
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
+    raw_data_config = utils.attrdict_from_json('engines/data.json')
+    config = utils.attrdict_from_json('engines/engine_detection.json')
+    config.update(raw_data=raw_data_config)
+    utils.attrdict_to_json(config, 'engines/config.json', indent='\t')
+
+    app = forecaster.get_app(config.app)(config)
+    app.train_eval()
 
 
 if __name__ == '__main__':

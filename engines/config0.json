@@ -14,13 +14,8 @@
 			"y",
 			"z"
 		],
-		"seq_len": 50,
-        "shift": 10,
-        "min_seq_mask_len":  10,
-        "max_seq_mask_len":  25,
-        "min_feature_mask_len": 10,
-        "max_feature_mask_len": 25,
-        "feature_masked_ratio": 0.3
+		"input_seq_len": 50,
+        "output_seq_len": 50
     },
 	"model": {
 		"params": {
@@ -40,17 +35,19 @@
 	"run": {
 		"train": {
 			"batch_size": 128,
-            "steps": 30000,
-			"keep_best_ckpt": true
+            "epoch_size": 1000,
+            "num_epochs":10
 		},
 		"eval": {
 			"batch_size": 128,
             "steps": 1000,
-            "every_training_steps": 1000
+            "every_epochs": 1
 		},
         "save": {
+            "model_path": "checkpoints",
+			"keep_best_ckpt": true,
 			"save_summary_steps": 100,
-            "save_checkpoints_every": 1000
+			"save_checkpoints_every_epochs": 1
         },
         "distribute": {
              "type": null,

@@ -189,7 +189,7 @@ class RawDataSpec(collections.namedtuple(
     def from_config(cls, config):
         config = attrdict.AttrDict(config)
         features_config = config.features
-        column_defaults = list(map(lambda k: features_config[k].default, config.columns))
+        column_defaults = list(map(lambda k: features_config.__getattr__(k).default, config.columns))
         return cls(config.columns, column_defaults, config.block_size, config.header)
 
     def dataset(self, data_files, shuffle=False, **kwargs):
@@ -256,7 +256,7 @@ def sequence_dataset(columns_specs,
         dataset = dataset_impl.windowed_dataset(
             dataset, max_offset, shift=shift, stride=stride,
             block_size=raw_data_spec.block_size, drop_remained_block=True)
-        dataset = dataset.map(process_map_fn)
+        dataset = dataset.map(process_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     return dataset
 
 
@@ -305,7 +305,7 @@ def multi_sequence_dataset(columns_specs,
             features_list.append(tf.broadcast_to(file_names_tensor, (raw_data_spec.block_size, num_seqs)))
             return tuple(features_list)
 
-        seqs_data = seqs_data.map(map_fn)
+        seqs_data = seqs_data.map(map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         seqs_data = seqs_data.flat_map(lambda *features: tf.data.Dataset.from_tensor_slices(features))
         seqs_data = dataset_impl.named_dataset(seqs_data, list(raw_data_spec.column_names) + [seq_id_name])
         return seqs_data
@@ -329,5 +329,5 @@ def multi_sequence_dataset(columns_specs,
         dataset = dataset_impl.windowed_dataset(
             dataset, max_offset, shift=shift, stride=stride,
             block_size=raw_data_spec.block_size, drop_remained_block=True)
-        dataset = dataset.map(process_map_fn)
+        dataset = dataset.map(process_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     return dataset

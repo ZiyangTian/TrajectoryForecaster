@@ -1,68 +1,127 @@
 {
+	"app": "anomaly_detection",
 	"data": {
-		"input_features": [
-			"t",
-            "x",
-			"y",
-			"z",
-			"xt",
-			"yt",
-			"zt"
-		],
-		"target_features": [
+		"features": [
 			"x",
 			"y",
 			"z"
 		],
-		"input_seq_len": 50,
-        "output_seq_len": 50
-    },
+		"labels": [
+			"distance_anomaly",
+			"height_anomaly",
+			"high_speed_anomaly",
+			"low_speed_anomaly",
+			"airline_anomaly"
+		],
+		"sequence_length": 5,
+		"stride": 1
+	},
 	"model": {
-		"params": {
-			"encoder_hidden_sizes": [],
-			"encoder_pooling_sizes": [],
-			"encoder_kernel_sizes": [],
-			"decoder_hidden_sizes": [],
-			"decoder_strides": [],
-			"decoder_kernel_sizes": [],
-			"target_size": 3
-		},
+		"num_layers": 3,
+		"d_model": 32,
+		"num_attention_heads": 4,
+		"conv_kernel_size": 3,
 		"optimizer": {
-			"name": "adam",
+			"type": "adam",
 			"learning_rate": 0.001
 		}
 	},
 	"run": {
 		"train": {
+			"data_shift": 1,
 			"batch_size": 128,
-            "epoch_size": 1000,
-            "num_epochs":10
+			"num_epochs": 10,
+			"shuffle_buffer_size": 10000,
+			"steps": 500000
 		},
 		"eval": {
+			"data_shift": 1,
 			"batch_size": 128,
-            "steps": 1000,
-            "every_epochs": 1
+			"steps": 1000,
+			"every_epochs": 1,
+			"start_delay_seconds": 120,
+			"throttle_secs": 600
 		},
-        "save": {
-            "model_path": "checkpoints",
-			"keep_best_ckpt": true,
+		"predict": {
+			"data_shift": 1,
+			"batch_size": 128
+		},
+		"save": {
+			"model_dir": "/Users/Tianziyang/Desktop/fake/saved",
 			"save_summary_steps": 100,
-			"save_checkpoints_every_epochs": 1
-        },
-        "distribute": {
-             "type": null,
-             "tf_config": {
-                 "cluster": {
-                     "worker": [
-                         "localhost:12345",
-                         "localhost:23456"
-                     ]
-                 },
-                 "task": {
-                     "type": "worker",
-                     "index": 0
-                 }
-             }
-        }
+			"save_checkpoints_steps": 1000,
+			"keep_checkpoint_max": 10
+		},
+		"distribute": {
+			"type": null,
+			"workers": [
+				"localhost: 6001",
+				"localhost: 6002",
+				"localhost: 6003"
+			]
+		}
+	},
+	"raw_data": {
+		"name": "anomaly_detection_test",
+		"train_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/train/raw",
+		"eval_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/test/raw",
+		"test_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/test/raw",
+		"columns": [
+			"t",
+			"x",
+			"y",
+			"z",
+			"distance_anomaly",
+			"height_anomaly",
+			"high_speed_anomaly",
+			"low_speed_anomaly",
+			"airline_anomaly"
+		],
+		"features": {
+			"t": {
+				"dtype": "float",
+				"default": 0.0
+			},
+			"x": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 0.0,
+				"std": 300.0
+			},
+			"y": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 0.0,
+				"std": 300.0
+			},
+			"z": {
+				"dtype": "float",
+				"default": 0.0,
+				"mean": 0.0,
+				"std": 10.0
+			},
+			"distance_anomaly": {
+				"dtype": "int",
+				"default": 0
+			},
+			"height_anomaly": {
+				"dtype": "int",
+				"default": 0
+			},
+			"high_speed_anomaly": {
+				"dtype": "int",
+				"default": 0
+			},
+			"low_speed_anomaly": {
+				"dtype": "int",
+				"default": 0
+			},
+			"airline_anomaly": {
+				"dtype": "int",
+				"default": 0
+			}
+		},
+		"block_size": 5,
+		"header": false
 	}
 }

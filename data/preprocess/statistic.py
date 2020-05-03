@@ -12,6 +12,8 @@ def count_file_lens(files, to_log=None):
                 pass
             count += 1
             counts.append(count)
+        if count % 5 != 0:
+            print(file)
     if to_log is not None:
         with open(to_log, 'w') as f:
             for count in counts:
@@ -34,9 +36,9 @@ def wash_file_lens(files, wash_less_than):
             print(file)
 
 
-def cut_csv_files(csv_files, length, cut_from='tail', multiple_mode=False, **kwargs):
+def cut_csv_files(csv_files, length, cut_from='tail', multiple_mode=False, verbose=True, **kwargs):
     invalids = []
-    for file in csv_files:
+    for i, file in enumerate(csv_files):
         df = pd.read_csv(file, **kwargs)
         len_df = len(df)
         if len_df < length:
@@ -44,16 +46,20 @@ def cut_csv_files(csv_files, length, cut_from='tail', multiple_mode=False, **kwa
             os.remove(file)
         else:
             target_length = len_df - len_df % length if multiple_mode else length
+            if len_df == target_length:
+                df.to_csv(file, header=False, index=False)
             if len_df > target_length:
                 if cut_from == 'tail':
-                    df[:target_length].to_csv(header=False, index=False)
+                    df[:target_length].to_csv(file, header=False, index=False)
                 elif cut_from == 'head':
-                    df[-target_length:].to_csv(header=False, index=False)
+                    df[-target_length:].to_csv(file, header=False, index=False)
                 elif cut_from == 'random':
-                    start_index = np.random.uniform(0, len_df - target_length + 1)
-                    df[start_index: start_index + target_length].to_csv(header=False, index=False)
+                    start_index = int(np.random.uniform(0, len_df - target_length + 1))
+                    df[start_index: start_index + target_length].to_csv(file, header=False, index=False)
                 else:
                     raise ValueError('Invalid `cut_from` value: {}.'.format(cut_from))
+        if verbose and i % 100 == 0:
+            print('{} files finished.'.format(i))
     return invalids
 
 

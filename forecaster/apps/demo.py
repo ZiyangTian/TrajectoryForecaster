@@ -49,8 +49,9 @@ class Detector(tf.keras.Model):
 
     def call(self, inputs, **kwargs):
         encoded = self._encoder(inputs)
-        dense1 = tf.squeeze(self._head_dense1(tf.transpose(encoded, (0, 2, 1))), axis=-1)
-        outputs = self._head_dense2(dense1)
+        with tf.name_scope('head'):
+            dense1 = tf.squeeze(self._head_dense1(tf.transpose(encoded, (0, 2, 1))), axis=-1)
+            outputs = self._head_dense2(dense1)
         return outputs
 
 

@@ -1,1 +1,2 @@
-from forecaster.apps import fixed_length_forecaster
+from forecaster.apps.anomaly_detection.anomaly_detection import AnomalyDetector
+from forecaster.apps.anomaly_detection.anomaly_detection import AnomalyDetection
