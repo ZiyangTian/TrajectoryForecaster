@@ -70,47 +70,6 @@ def split_train_eval_test(files, prop_train, prop_eval, prop_test,
         shutil.rmtree(temp_dir)
 
 
-def check_file_len(data_files, file_len, title=True):
-    invalids = []
-    for file in data_files:
-        with open(file, 'r') as f:
-            if len(f.readlines()) != file_len + int(title):
-                invalids.append(file)
-    return invalids
-
-
-# -*- coding: UTF-8 -*-
-
-import os
-import shutil
-from random import sample
-
-import numpy as np
-
-from data_generator.ctrl_emulator import CtrlEmulator
-
-PARAMS_TO_RECORD = ['xt', 'yt', 'vt', 'theta_t', 'at_normal']
-
-
-def generate_data():
-    em_sim = CtrlEmulator()
-    for vdm in range(1, 4):
-        for iha in np.arange(-80, -10, 10, dtype=np.float):
-            for dm in np.arange(5000, 30000, 100, dtype=np.float):
-                name = '{vdm}_{iha}_{dm}.csv'.format(
-                    vdm=vdm, iha=iha, dm=dm)
-                print(name)
-                em_sim.run(initial_params={
-                    'value_direction_maneuver': vdm,
-                    'initial_heading_angle': iha,
-                    'distance_maneuver': dm,
-                    'value_target_acceleration': 9.0,
-                    't_inter': 0.005},
-                    steps=3000,
-                    params_to_record=['xt', 'yt', 'vt', 'theta_t', 'at_normal'],
-                    data_file='data/{name}'.format(name=name))
-
-
 def split_train_test(files, prop_train, train_dir=None, test_dir=None):
     train_files = sample(files, int(len(files) * prop_train))
     test_files = []
@@ -126,31 +85,3 @@ def split_train_test(files, prop_train, train_dir=None, test_dir=None):
         shutil.move(file, os.path.join(train_dir, os.path.split(file)[-1]))
     for file in test_files:
         shutil.move(file, os.path.join(test_dir, os.path.split(file)[-1]))
-
-
-def main():
-    # gen erate_data()
-    os.chdir('../')
-    data_path = 'data1'
-    for _, _, files in os.walk(data_path):
-        for i in range(len(files)):
-            files[i] = os.path.join(data_path, files[i])
-        split_train_test(
-            files,
-            prop_train=0.8,
-            train_dir=os.path.join(data_path, 'train'),
-            test_dir=os.path.join(data_path, 'test'))
-        break
-
-
-if __name__ == "__main__":
-    em_sim = CtrlEmulator()
-    em_sim.run(initial_params={
-        'value_direction_maneuver': 2,
-        'initial_heading_angle': -50.,
-        'distance_maneuver': 15000,
-        'value_target_acceleration': 9.0,
-        't_inter': 0.005},
-        steps=3000,
-        params_to_record=['xt', 'yt', 'vt', 'theta_t', 'at_normal'],
-        data_file='../data/{name}'.format(name='1.csv'))

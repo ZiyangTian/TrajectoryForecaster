@@ -1,5 +1,6 @@
 import os
-import shutil
+import numpy as np
+import pandas as pd
 
 
 def count_file_lens(files, to_log=None):
@@ -31,6 +32,29 @@ def wash_file_lens(files, wash_less_than):
         if count < wash_less_than:
             os.remove(file)
             print(file)
+
+
+def cut_csv_files(csv_files, length, cut_from='tail', multiple_mode=False, **kwargs):
+    invalids = []
+    for file in csv_files:
+        df = pd.read_csv(file, **kwargs)
+        len_df = len(df)
+        if len_df < length:
+            invalids.append(file)
+            os.remove(file)
+        else:
+            target_length = len_df - len_df % length if multiple_mode else length
+            if len_df > target_length:
+                if cut_from == 'tail':
+                    df[:target_length].to_csv(header=False, index=False)
+                elif cut_from == 'head':
+                    df[-target_length:].to_csv(header=False, index=False)
+                elif cut_from == 'random':
+                    start_index = np.random.uniform(0, len_df - target_length + 1)
+                    df[start_index: start_index + target_length].to_csv(header=False, index=False)
+                else:
+                    raise ValueError('Invalid `cut_from` value: {}.'.format(cut_from))
+    return invalids
 
 
 def main():

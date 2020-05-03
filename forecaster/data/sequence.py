@@ -6,9 +6,10 @@ from __future__ import unicode_literals
 
 import abc
 import collections
+import attrdict
 import tensorflow as tf
 
-from forecaster.data import dataset_utils
+from forecaster.data import dataset_impl
 from utils import typing as typing_utils
 
 
@@ -64,7 +65,7 @@ class SeqColumnsSpec(ColumnsSpec):
     """ Sequence columns spec.
         Arguments:
             raw_column_names: A `list` of `str`, raw column names.
-            seq_len: An `int`, sequence length.
+            sequence_length: An `int`, sequence length.
             offset: An `int`, relative offset of sequence starting position.
             group: A `bool`, whether to group columns. If true, all raw columns must have
                 identical data type.
@@ -76,17 +77,17 @@ class SeqColumnsSpec(ColumnsSpec):
                 `raw_column_names` and `group`.
             AttributeError: If use method `get_new_name` when `group` is true.
     """
-    def __init__(self, raw_column_names, seq_len, offset=0, group=True, new_names=None):
-        self._seq_len = seq_len
+    def __init__(self, raw_column_names, sequence_length, offset=0, group=True, new_names=None):
+        self._sequence_length = sequence_length
         self._offset = offset
         super(SeqColumnsSpec, self).__init__(raw_column_names, group=group, new_names=new_names)
 
     @property
     def max_offset(self):
-        return self._seq_len + self._offset
+        return self._sequence_length + self._offset
 
     def _new_name_prefix(self):
-        return 'SeqColumns_%i_%i' % (self._seq_len, self._offset)
+        return 'SeqColumns_%i_%i' % (self._sequence_length, self._offset)
 
     def process_map_fn(self, windowed_dict, name=None):
         """ Map from a windowed feature `dict` to sequential feature tensors.
@@ -98,7 +99,7 @@ class SeqColumnsSpec(ColumnsSpec):
         """
         with tf.name_scope(name or 'process_seq_columns'):
             processed_features = map(
-                lambda k: windowed_dict[k][self._offset: self._offset + self._seq_len],
+                lambda k: windowed_dict[k][self._offset: self._offset + self._sequence_length],
                 self._raw_column_names)
             if self._group:
                 processed_features = {self._new_names: tf.stack(list(processed_features), axis=-1)}
@@ -175,17 +176,22 @@ class RawDataSpec(collections.namedtuple(
     'RawDataSpec', (
         'column_names',
         'column_defaults',
-        'stride',
-        'file_length',
-        'csv_with_header'))):
+        'block_size',
+        'header'))):
     """ Spec for raw data files.
         Arguments:
             column_names: A sequence of `str`, column names that match the titles in the CSV files.
             column_defaults: A sequence , default column values that match `column_names`.
-            stride: An `int`, stride for data down-sampling.
-            file_length: An `int`, number of samples in a single data file.
+            block_size: An `int`, number of samples in a single data file.
             csv_with_header: A `bool`, whether the CSV files have column headers.
     """
+    @classmethod
+    def from_config(cls, config):
+        config = attrdict.AttrDict(config)
+        features_config = config.features
+        column_defaults = list(map(lambda k: features_config[k].default, config.columns))
+        return cls(config.columns, column_defaults, config.block_size, config.header)
+
     def dataset(self, data_files, shuffle=False, **kwargs):
         """ Create a dataset from data files.
             Arguments:
@@ -202,7 +208,7 @@ class RawDataSpec(collections.namedtuple(
         return tf.data.experimental.CsvDataset(
             data_files,
             self.column_defaults,
-            header=self.csv_with_header,
+            header=self.header,
             **kwargs)
 
 
@@ -215,8 +221,9 @@ def _exam_repetitive_new_names(columns_specs, banned=None):
 
 def sequence_dataset(columns_specs,
                      data_files,
-                     raw_data_spec,
+                     raw_data_spec: RawDataSpec,
                      shift=None,
+                     stride=1,
                      shuffle_files=False,
                      name=None,
                      **kwargs):
@@ -226,6 +233,7 @@ def sequence_dataset(columns_specs,
             data_files: A `str` or an 1-D `tf.string` `Tensor` like, data file name(s).
             raw_data_spec: An instance of `RawDataSpec`.
             shift: An `int`, the forward shift of the sliding window.
+            stride: A `int`, the stride of the input elements in the sliding window.
             shuffle_files: A `bool`, whether to shuffle data files.
             name: A `str`, OP name, defaults to "sequence_dataset".
             kwargs: Keyword arguments to create the `CsvDataset`.
@@ -244,20 +252,21 @@ def sequence_dataset(columns_specs,
 
     with tf.name_scope(name or 'sequence_dataset'):
         dataset = raw_data_spec.dataset(data_files, shuffle_files, **kwargs)
-        dataset = dataset_utils.named_dataset(dataset, raw_data_spec.column_names)
-        dataset = dataset_utils.windowed_dataset(
-            dataset, max_offset, shift=shift, stride=raw_data_spec.stride,
-            block_size=raw_data_spec.file_length, drop_remained_block=True)
+        dataset = dataset_impl.named_dataset(dataset, raw_data_spec.column_names)
+        dataset = dataset_impl.windowed_dataset(
+            dataset, max_offset, shift=shift, stride=stride,
+            block_size=raw_data_spec.block_size, drop_remained_block=True)
         dataset = dataset.map(process_map_fn)
     return dataset
 
 
 def multi_sequence_dataset(columns_specs,
                            data_files,
-                           raw_data_spec,
+                           raw_data_spec: RawDataSpec,
                            num_seqs,
                            seq_id_name='seq_id',
                            shift=None,
+                           stride=1,
                            shuffle_files=False,
                            repeat_files=1,
                            name=None,
@@ -270,6 +279,7 @@ def multi_sequence_dataset(columns_specs,
             num_seqs: An `int`, number of sequences.
             seq_id_name: A `str`, name of the sequence ID feature.
             shift: An `int`, use sample every this number of raw samples.
+            stride: A `int`, the stride of the input elements in the sliding window.
             shuffle_files: A `bool`, whether to shuffle data files.
             repeat_files: An `int`, the number of times the data files should be repeated. Defaults
                 to infinite times.
@@ -286,18 +296,18 @@ def multi_sequence_dataset(columns_specs,
 
     def load_data_map_fn(id_tensor):
         file_names_tensor = tf.gather(tf.convert_to_tensor(data_files), id_tensor)
-        seqs_data = raw_data_spec.train_dataset(file_names_tensor, shuffle=shuffle_files, **kwargs)
-        seqs_data = dataset_utils.windowed_dataset(seqs_data, raw_data_spec.file_length)
-        seqs_data = dataset_utils.windowed_dataset(seqs_data, num_seqs)
+        seqs_data = raw_data_spec.dataset(file_names_tensor, shuffle=shuffle_files, **kwargs)
+        seqs_data = dataset_impl.windowed_dataset(seqs_data, raw_data_spec.block_size)
+        seqs_data = dataset_impl.windowed_dataset(seqs_data, num_seqs)
 
         def map_fn(*bn_features):
             features_list = list(map(lambda fea: tf.transpose(fea), bn_features))
-            features_list.append(tf.broadcast_to(file_names_tensor, (raw_data_spec.file_length, num_seqs)))
+            features_list.append(tf.broadcast_to(file_names_tensor, (raw_data_spec.block_size, num_seqs)))
             return tuple(features_list)
 
         seqs_data = seqs_data.map(map_fn)
         seqs_data = seqs_data.flat_map(lambda *features: tf.data.Dataset.from_tensor_slices(features))
-        seqs_data = dataset_utils.named_dataset(seqs_data, list(raw_data_spec.column_names) + [seq_id_name])
+        seqs_data = dataset_impl.named_dataset(seqs_data, list(raw_data_spec.column_names) + [seq_id_name])
         return seqs_data
 
     def process_map_fn(windowed_dict):
@@ -311,13 +321,13 @@ def multi_sequence_dataset(columns_specs,
         if shuffle_files:
             id_dataset = id_dataset.shuffle(num_files)
         id_dataset = id_dataset.repeat(repeat_files)
-        id_dataset = dataset_utils.windowed_dataset(
+        id_dataset = dataset_impl.windowed_dataset(
             id_dataset,
             size=num_seqs, shift=shift, stride=1,
             block_size=num_files, drop_remained_block=True)
         dataset = id_dataset.flat_map(load_data_map_fn)
-        dataset = dataset_utils.windowed_dataset(
-            dataset, max_offset, shift=shift, stride=raw_data_spec.stride,
-            block_size=raw_data_spec.file_length, drop_remained_block=True)
+        dataset = dataset_impl.windowed_dataset(
+            dataset, max_offset, shift=shift, stride=stride,
+            block_size=raw_data_spec.block_size, drop_remained_block=True)
         dataset = dataset.map(process_map_fn)
     return dataset

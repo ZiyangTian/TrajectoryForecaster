@@ -1,11 +1,19 @@
 """ Operation system utilities. """
+import glob
 import os
 import shutil
 
 
 def fresh_dir(dir_path):
     if os.path.exists(dir_path):
-        shutil.rmtree(dir_path)
+        for file_or_dir in glob.glob(dir_path):
+            if os.path.isfile(file_or_dir):
+                os.remove(file_or_dir)
+            elif os.path.isdir(file_or_dir):
+                shutil.rmtree(file_or_dir)
+            else:
+                pass
+        return
     os.mkdir(dir_path)
 
 

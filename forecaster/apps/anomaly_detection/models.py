@@ -32,6 +32,7 @@ def parse_data(pattern):
         labels.append(outputs_df[4:])
 
     features = np.concatenate(features, axis=0)
+    # features = features / np.array([1., 300., 300., 10.])
     labels = np.concatenate(labels, axis=0)
 
     return features[:, :, 1:], labels
@@ -41,7 +42,7 @@ class Detector(tf.keras.Model):
     def __init__(self):
         super(Detector, self).__init__()
         self._encoder = networks.SequenceEncoder(
-            num_layers=2, d_model=16, num_attention_heads=4, conv_kernel_size=3,
+            num_layers=2, d_model=32, num_attention_heads=4, conv_kernel_size=3,
             numeric_normalizer_fn=lambda x: x / [300., 300., 10.], numeric_restorer_fn=None, name=None)
         self._head_dense1 = tf.keras.layers.Dense(1)
         self._head_dense2 = tf.keras.layers.Dense(5, activation='sigmoid')
@@ -57,6 +58,7 @@ def main():
     train_features, train_labels = parse_data(TRAIN_PATTERN)
     test_features, test_labels = parse_data(TEST_PATTERN)
     model = Detector()
+
     model.compile(
         optimizer='adam', loss='categorical_crossentropy', metrics=[tf.keras.metrics.BinaryAccuracy()])
     callbacks = [

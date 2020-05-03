@@ -23,5 +23,9 @@ def main():
     forecaster.run_with_flags(flags)
 
 
+def data_preprocess():
+    import data
+
+
 if __name__ == '__main__':
     main()

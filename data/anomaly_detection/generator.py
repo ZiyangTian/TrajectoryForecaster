@@ -49,8 +49,7 @@ class TrajectoryGeneratorConfig(object):
 
 class TrajectoryGenerator(TrajectoryGeneratorConfig):
     def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            self.__setattr__(k, v)
+        self.sets(**kwargs)
 
         self._airspace = environment.Airspace(self.x_loc, self.y_loc, self.max_radius)
 
@@ -71,6 +70,10 @@ class TrajectoryGenerator(TrajectoryGeneratorConfig):
                     np.random.uniform(0, 2 * np.pi),
                     np.random.uniform(self.alert_height, self.max_height),
                     clockwise=np.random.uniform() > 0.5))
+
+    def sets(self, **kwargs):
+        for k, v in kwargs.items():
+            self.__setattr__(k, v)
 
     @property
     def airspace(self):

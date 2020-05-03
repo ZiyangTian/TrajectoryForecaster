@@ -1,0 +1,62 @@
+{
+    "app": "anomaly_detection",
+	"data": {
+		"features": [
+            "x",
+			"y",
+			"z"
+		],
+		"labels": [
+			"distance_anomaly",
+            "height_anomaly",
+            "high_speed_anomaly",
+            "low_speed_anomaly",
+            "airline_anomaly"
+		],
+		"sequence_length": 5,
+        "stride": 3
+    },
+	"model": {
+		"hidden_size": 128,
+        "dropout": 0.1,
+		"optimizer": {
+			"type": "adam",
+			"learning_rate": 0.001
+		}
+	},
+	"run": {
+		"train": {
+			"batch_size": 128,
+            "num_epochs":10,
+            "steps": 500000
+		},
+		"eval": {
+			"batch_size": 128,
+            "steps": 1000,
+            "every_epochs": 1,
+            "start_delay_seconds":120,
+            "throttle_secs": 600
+		},
+        "save": {
+            "model_path": "checkpoints",
+			"keep_best_ckpt": true,
+			"save_summary_steps": 100,
+			"save_checkpoints_every_epochs": 1
+        },
+        "distribute": {
+             "type": null,
+             "tf_config": {
+                 "cluster": {
+                     "worker": [
+                         "localhost:12345",
+                         "localhost:23456"
+                     ]
+                 },
+                 "task": {
+                     "type": "worker",
+                     "index": 0
+                 }
+             }
+        }
+	}
+}
