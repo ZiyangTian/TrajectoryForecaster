@@ -34,7 +34,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self.d_model = d_model
         if d_model % num_heads != 0:
             raise ValueError(
-                '`d_model` must be devided by `num_heads`, got {} and {}'.format(d_model, num_heads))
+                '`d_model` must be divided by `num_heads`, got {} and {}'.format(d_model, num_heads))
         self.depth = d_model // num_heads
 
         self.wq = tf.keras.layers.Dense(d_model)
@@ -144,15 +144,3 @@ class SequenceEncoder(tf.keras.layers.Layer):
             return outputs
         restored_outputs = self._numeric_restorer(outputs)
         return outputs, restored_outputs
-
-
-def main():
-    x = tf.constant(1., shape=(3, 5, 3))
-    mask = tf.random.uniform((3, 5, 3), minval=0, maxval=2, dtype=tf.int32)
-    model = SequenceEncoder(2, 32, 4, 8)
-    y = model(x, mask=mask)
-    print(tf.shape(y))
-
-
-if __name__ == '__main__':
-    main()

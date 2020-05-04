@@ -8,28 +8,6 @@ from forecaster.run import keys
 from forecaster.run import flags
 
 
-def _parse_distribute_config(config, temp_dir=None):
-    distribute_config = config.run.distribute
-    num_workers = len(distribute_config.workers)
-
-    configs = []
-    for i in range(num_workers):
-        config_i = attrdict.AttrDict(config)
-        config_i.update(
-            distribute={
-                'type': distribute_config.type,
-                'tf_config': {
-                    'cluster': {'worker': distribute_config.workers},
-                    'task': {'type': 'worker', 'index': i}}})
-        configs.append(config_i)
-
-        if temp_dir is not None:
-            with open(os.path.join(temp_dir, 'config_{}'.format(i)), 'w') as f:
-                json.dump(config_i, f)
-
-    return configs
-
-
 def run_standalone(mode, config, overwrite=False):
     """
 

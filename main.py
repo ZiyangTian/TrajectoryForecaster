@@ -33,7 +33,7 @@ def main():
     utils.attrdict_to_json(config, 'engines/config.json', indent='\t')
 
     app = forecaster.get_app(config.app)(config)
-    app.train_eval()
+    app.fit()
 
 
 if __name__ == '__main__':

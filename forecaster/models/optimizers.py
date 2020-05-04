@@ -8,7 +8,14 @@ import tensorflow as tf
 
 
 _REGISTERED_OPTIMIZERS = {
-    'adam': tf.compat.v1.train.AdamOptimizer,
+    'adadelta': tf.keras.optimizers.Adadelta,
+    'adagrad': tf.keras.optimizers.Adagrad,
+    'adam': tf.keras.optimizers.Adam,
+    'adamax': tf.keras.optimizers.Adamax,
+    'ftrl': tf.keras.optimizers.Ftrl,
+    'nadam': tf.keras.optimizers.Nadam,
+    'rmsprop': tf.keras.optimizers.RMSprop,
+    'sgd': tf.keras.optimizers.SGD
 }
 
 

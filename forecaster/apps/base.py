@@ -12,7 +12,6 @@ import attrdict
 import tensorflow as tf
 
 from forecaster import apps
-from forecaster.data import sequence
 
 REGISTERED_APPS = {}
 
@@ -34,7 +33,7 @@ app = AppRegister
 
 
 class App(object):
-    """Base class for jobs.
+    """Base class for apps.
     Arguments:
         config: A `dict` like, configuration to build the job.
         warm_start_from: A `str`, representing the saved models file to warm-start from.
@@ -44,43 +43,42 @@ class App(object):
 
     def __init__(self, config, warm_start_from=None):
         self._config = attrdict.AttrDict(config)
-        self._raw_data_spec = sequence.RawDataSpec.from_config(config.raw_data)
-        self._distribute_strategy = None
         self._model = None
         self._build(warm_start_from=warm_start_from)
 
-    @property
     @abc.abstractmethod
-    def model_fn(self):
-        """Build `self._model`, do not include distribute strategy here.
+    def build(self):
+        """Return a compiled `tf.keras.Model`, do not include distribute strategy here.
         Code example:
-            self._model = tf.estimator.Estimator(...)
+            model = tf.keras.Model(...)
+            model.complile(...)
+            return model
         """
-        raise NotImplementedError('Job.model_fn')
+        raise NotImplementedError('App.build')
 
     @property
     @abc.abstractmethod
-    def train_input_fn(self):
-        """Function which takes no argument and returns an `input_fn` for training, which can
-            be used in a `tf.estimator.Estimator`. See `tf.estimator.Estimator.train`.
+    def train_dataset(self):
+        """Returns a `Dataset` for training, which can
+            be used in a `tf.keras.Model`. See `tf.keras.Model.fit`.
         """
-        raise NotImplementedError('Job.train_input_fn')
+        raise NotImplementedError('App.train_dataset')
 
     @property
     @abc.abstractmethod
-    def eval_input_fn(self):
-        """Function which takes no argument and returns a `input_fn` for evaluation, which can
-            be used in a `tf.estimator.Estimator`. See `tf.estimator.Estimator.evaluate`.
+    def valid_dataset(self):
+        """Returns a `Dataset` for validation, which can
+            be used in a `tf.keras.Model`. See `tf.keras.Model.fit`.
         """
-        raise NotImplementedError('Job.eval_input_fn')
+        raise NotImplementedError('App.valid_dataset')
 
     @property
-    def predict_input_fn(self):
-        """Function which takes no argument and return as `input_fn` for predicting, which can
-            be used in an `tf.keras.Model`. See `tf.keras.Model.predict`.
+    @abc.abstractmethod
+    def test_dataset(self):
+        """Returns a `Dataset` for training, which can
+            be used in a `tf.keras.Model`. See `tf.keras.Model.evaluate`.
         """
-        tf.compat.v1.logging.error('Property `predict_dataset` is not implemented, nothing returned.')
-        return None
+        return NotImplementedError('App.test_dataset')
 
     @property
     def config(self):
@@ -90,33 +88,34 @@ class App(object):
     def model(self):
         return self._model
 
-    def train_eval(self):
+    def fit(self):
         train_config = self._config.run.train
-        train_spec = tf.estimator.TrainSpec(self.train_input_fn, max_steps=train_config.steps, hooks=None)
-        eval_config = self._config.run.eval
-        eval_spec = tf.estimator.EvalSpec(
-            self.eval_input_fn, steps=None, name=None, hooks=None, exporters=None,
-            start_delay_secs=eval_config.start_delay_seconds, throttle_secs=eval_config.throttle_secs)
-        return tf.estimator.train_and_evaluate(self._model, train_spec, eval_spec)
+        path_config = self._config.path
+        callbacks = [
+            tf.keras.callbacks.ModelCheckpoint(
+                os.path.join(path_config.checkpoints_dir, 'best.ckpt'),
+                monitor='val_loss',
+                verbose=0,
+                save_best_only=True,
+                save_freq='epoch',
+                load_weights_on_restart=True),
+            tf.keras.callbacks.TensorBoard(
+                log_dir=path_config.tensorboard_dir,
+                histogram_freq=1,
+                update_freq='batch')]
+        return self._model.fit(
+            self.train_dataset, epochs=train_config.epochs, verbose=1, callbacks=callbacks,
+            validation_data=self.valid_dataset,
+            steps_per_epoch=train_config.steps_per_epoch)
 
     def evaluate(self):
-        # eval_config = self._config.run.eval
-        return self._model.evaluate(
-            self.eval_input_fn, steps=None, hooks=None)
+        return self._model.evaluate(self.test_dataset, return_dict=True)
 
-    def predict(self):
-        if self.predict_input_fn is None:
-            raise NotImplementedError('Job.predict_input_fn')
-        # predict_config = self._config.run.predict
-        self._model.predict(
-            self.predict_input_fn, predict_keys=None, hooks=None, checkpoint_path=None)
+    def predict(self, *args, **kwargs):
+        self._model.predict(*args, **kwargs)
 
     def _build(self, warm_start_from=None):
-        save_config = self._config.run.save
-        run_config = tf.estimator.RunConfig(
-            save_summary_steps=save_config.save_summary_steps,
-            save_checkpoints_steps=save_config.save_checkpoints_steps,
-            keep_checkpoint_max=save_config.keep_checkpoint_max)
+        del warm_start_from  # TODO: ...
         distribute_config = self._config.run.distribute
         distribute_type = distribute_config.type
 
@@ -124,9 +123,8 @@ class App(object):
             communication = getattr(tf.distribute.experimental.CollectiveCommunication, distribute_type.upper())
             tf_config = distribute_config.tf_config
             os.environ['TF_CONFIG'] = json.dumps(dict(tf_config))
-            self._distribute_strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(communication)
-            run_config.replace(train_distribute=self._distribute_strategy)
-
-        self._model = tf.estimator.Estimator(
-            self.model_fn, model_dir=self._config.run.save.model_dir,
-            config=run_config, params=None, warm_start_from=warm_start_from)
+            strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(communication)
+            with strategy.scope():
+                self._model = self.build()
+        else:
+            self._model = self.build()

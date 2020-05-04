@@ -3,7 +3,6 @@ import tensorflow as tf
 
 from forecaster.apps import base
 from forecaster.data import sequence
-from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
 
@@ -16,7 +15,7 @@ def make_dataset(pattern,
                  shift,
                  stride,
                  batch_size,
-                 num_epochs,
+                 repeat_infinitely=False,
                  shuffle_buffer_size=None,
                  name=None):
     data_files = tf.io.gfile.glob(pattern)
@@ -33,7 +32,8 @@ def make_dataset(pattern,
         dataset = dataset.map(
             lambda feature_dict: (feature_dict['features'], feature_dict['labels']),
             num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        dataset = dataset.repeat(num_epochs)
+        if repeat_infinitely:
+            dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
             dataset = dataset.shuffle(shuffle_buffer_size)
         dataset = dataset.batch(batch_size)
@@ -69,8 +69,7 @@ class AnomalyDetector(tf.keras.Model):
 
 @base.app('anomaly_detection')
 class AnomalyDetection(base.App):
-    @property
-    def model_fn(self):
+    def build(self):
         data_config = self._config.data
         model_config = self._config.model
         normalizer_mean = list(map(
@@ -85,99 +84,66 @@ class AnomalyDetection(base.App):
                 ans = (features - mean) / std
             return ans
 
-        def model_fn(features, labels, mode, params, config):
-            del params
-            del config
-            detector = AnomalyDetector(
-                model_config.num_layers, model_config.d_model,
-                model_config.num_attention_heads,
-                model_config.conv_kernel_size,
-                len(data_config.labels),
-                numeric_normalizer_fn=numeric_normalizer_fn,
-                input_shape=(data_config.sequence_length, len(data_config.features)))
-            predictions = detector(features)
-            if mode == tf.estimator.ModeKeys.PREDICT:
-                return tf.estimator.EstimatorSpec(
-                    mode,
-                    predictions=predictions)
-            metric_ops = {'binary_accuracy': metrics.binary_accuracy(labels, predictions)}
-            loss = tf.keras.losses.CategoricalCrossentropy()(labels, predictions)
-            if mode == tf.estimator.ModeKeys.EVAL:
-                return tf.estimator.EstimatorSpec(
-                    mode,
-                    loss=loss,
-                    predictions=predictions,
-                    eval_metric_ops=metric_ops)
-            train_op = optimizers.get_optimizer(model_config.optimizer).minimize(
-                loss, global_step=tf.compat.v1.train.get_global_step(), name='train_op')
-            if mode == tf.estimator.ModeKeys.TRAIN:
-                return tf.estimator.EstimatorSpec(
-                    mode,
-                    predictions=predictions, loss=loss, train_op=train_op,
-                    eval_metric_ops=metric_ops)
-            raise ValueError('Invalid `mode` value.')
-
-        return model_fn
+        model = AnomalyDetector(
+            model_config.num_layers, model_config.d_model,
+            model_config.num_attention_heads,
+            model_config.conv_kernel_size,
+            len(data_config.labels),
+            numeric_normalizer_fn=numeric_normalizer_fn,
+            input_shape=(data_config.sequence_length, len(data_config.features)))
+        model.compile(
+            optimizers.get_optimizer(model_config.optimizer),
+            loss='categorical_crossentropy',
+            metrics=['binary_accuracy'])
+        return model
 
     @property
-    def train_input_fn(self):
+    def train_dataset(self):
         data_config = self._config.data
         train_config = self._config.run.train
-
-        def input_fn():
-            return make_dataset(
-                os.path.join(self._config.raw_data.train_dir, '*.csv'),
-                self._raw_data_spec,
-                data_config.features,
-                data_config.labels,
-                data_config.sequence_length,
-                train_config.data_shift,
-                data_config.stride,
-                train_config.batch_size,
-                train_config.num_epochs,
-                shuffle_buffer_size=train_config.shuffle_buffer_size,
-                name='train_input_fn')
-
-        return input_fn
+        return make_dataset(
+            os.path.join(self._config.raw_data.train_dir, '*.csv'),
+            sequence.RawDataSpec.from_config(self._config.raw_data),
+            data_config.features,
+            data_config.labels,
+            data_config.sequence_length,
+            train_config.data_shift,
+            data_config.stride,
+            train_config.batch_size,
+            repeat_infinitely=True,
+            shuffle_buffer_size=train_config.shuffle_buffer_size,
+            name='train_dataset')
 
     @property
-    def eval_input_fn(self):
+    def valid_dataset(self):
         data_config = self._config.data
         eval_config = self._config.run.eval
-
-        def input_fn():
-            return make_dataset(
-                os.path.join(self._config.raw_data.eval_dir, '*.csv'),
-                self._raw_data_spec,
-                data_config.features,
-                data_config.labels,
-                data_config.sequence_length,
-                eval_config.data_shift,
-                data_config.stride,
-                eval_config.batch_size,
-                1,
-                shuffle_buffer_size=None,
-                name='eval_input_fn')
-
-        return input_fn
+        return make_dataset(
+            os.path.join(self._config.raw_data.eval_dir, '*.csv'),
+            sequence.RawDataSpec.from_config(self._config.raw_data),
+            data_config.features,
+            data_config.labels,
+            data_config.sequence_length,
+            eval_config.data_shift,
+            data_config.stride,
+            eval_config.batch_size,
+            repeat_infinitely=False,
+            shuffle_buffer_size=None,
+            name='valid_dataset')
 
     @property
-    def predict_input_fn(self):
+    def test_dataset(self):
         data_config = self._config.data
         predict_config = self._config.run.predict
-
-        def input_fn():
-            return make_dataset(
-                os.path.join(self._config.raw_data.test_dir, '*.csv'),
-                self._raw_data_spec,
-                data_config.features,
-                data_config.labels,
-                data_config.sequence_length,
-                predict_config.data_shift,
-                data_config.stride,
-                predict_config.batch_size,
-                1,
-                shuffle_buffer_size=None,
-                name='predict_input_fn')
-
-        return input_fn
+        return make_dataset(
+            os.path.join(self._config.raw_data.test_dir, '*.csv'),
+            sequence.RawDataSpec.from_config(self._config.raw_data),
+            data_config.features,
+            data_config.labels,
+            data_config.sequence_length,
+            predict_config.data_shift,
+            data_config.stride,
+            predict_config.batch_size,
+            repeat_infinitely=False,
+            shuffle_buffer_size=None,
+            name='test_dataset')

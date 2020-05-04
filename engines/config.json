@@ -30,27 +30,21 @@
 		"train": {
 			"data_shift": 1,
 			"batch_size": 128,
-			"num_epochs": 10,
 			"shuffle_buffer_size": 10000,
-			"steps": 500000
+			"epochs": 100,
+			"steps_per_epoch": 1000
 		},
 		"eval": {
 			"data_shift": 1,
-			"batch_size": 128,
-			"steps": 1000,
-			"every_epochs": 1,
-			"start_delay_seconds": 120,
-			"throttle_secs": 600
+			"batch_size": 128
 		},
 		"predict": {
 			"data_shift": 1,
 			"batch_size": 128
 		},
 		"save": {
-			"model_dir": "/Users/Tianziyang/Desktop/fake/saved",
-			"save_summary_steps": 100,
-			"save_checkpoints_steps": 1000,
-			"keep_checkpoint_max": 10
+			"model_dir": "/Users/Tianziyang/Desktop/fake/saved_2/checkpoints",
+			"log_dir": "/Users/Tianziyang/Desktop/fake/saved_2/tensorboard"
 		},
 		"distribute": {
 			"type": null,
