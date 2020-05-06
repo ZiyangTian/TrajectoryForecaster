@@ -37,10 +37,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
                 '`d_model` must be divided by `num_heads`, got {} and {}'.format(d_model, num_heads))
         self.depth = d_model // num_heads
 
-        self.wq = tf.keras.layers.Dense(d_model)
-        self.wk = tf.keras.layers.Dense(d_model)
-        self.wv = tf.keras.layers.Dense(d_model)
-        self.dense = tf.keras.layers.Dense(d_model)
+        self.wq = tf.keras.layers.Dense(d_model, name='dense_q')
+        self.wk = tf.keras.layers.Dense(d_model, name='dense_k')
+        self.wv = tf.keras.layers.Dense(d_model, name='dense_v')
+        self.dense = tf.keras.layers.Dense(d_model, name='dense_d_model')
 
     def split_heads(self, x, batch_size):
         x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
@@ -102,7 +102,7 @@ class SequenceEncoder(tf.keras.layers.Layer):
                  numeric_normalizer_fn=None,
                  numeric_restorer_fn=None,
                  name=None):
-        super(SequenceEncoder, self).__init__(name=name or 'sequence_auto_encoder')
+        super(SequenceEncoder, self).__init__(name=name or 'sequence_encoder')
         if numeric_normalizer_fn is None:
             self._numeric_normalizer = None
         else:

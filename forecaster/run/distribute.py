@@ -40,7 +40,7 @@ def run_standalone(mode, config, overwrite=False):
     path_config = config.path
 
     if mode == keys.RunningKeys.EVAL.value:
-        return app.eval()
+        return app.evaluate()
     if mode == keys.RunningKeys.TRAIN_EVAL.value:
         if overwrite:
             utils.fresh_dir(path_config.checkpoints_dir)

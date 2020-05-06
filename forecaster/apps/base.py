@@ -109,9 +109,11 @@ class App(object):
             steps_per_epoch=train_config.steps_per_epoch)
 
     def evaluate(self):
-        return self._model.evaluate(self.test_dataset, return_dict=True)
+        self._model.load_weights(os.path.join(self._config.path.checkpoints_dir, 'best.ckpt'))
+        return self._model.evaluate(self.test_dataset)
 
     def predict(self, *args, **kwargs):
+        self._model.load_weights(os.path.join(self._config.path.checkpoints_dir, 'best.ckpt'))
         self._model.predict(*args, **kwargs)
 
     def _build(self, warm_start_from=None):
