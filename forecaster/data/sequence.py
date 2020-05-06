@@ -183,7 +183,7 @@ class RawDataSpec(collections.namedtuple(
             column_names: A sequence of `str`, column names that match the titles in the CSV files.
             column_defaults: A sequence , default column values that match `column_names`.
             block_size: An `int`, number of samples in a single data file.
-            csv_with_header: A `bool`, whether the CSV files have column headers.
+            header: A `bool`, whether the CSV files have column headers.
     """
     @classmethod
     def from_config(cls, config):

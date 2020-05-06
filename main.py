@@ -36,5 +36,15 @@ def main():
     app.fit()
 
 
+def monitor_test():
+    monitor = forecaster.Monitor('/Users/Tianziyang/projects/saved/job_0')
+    # monitor.new(
+    #     engine_config_file='engines/engine_detection.json',
+    #     raw_data_config_file='/Users/Tianziyang/projects/AnomalyDetection/data/config.json',
+    #     overwrite=False)
+
+    monitor.run('train_eval', forecaster.RunningKeys.TRAIN_EVAL.value, overwrite=False)
+
+
 if __name__ == '__main__':
-    main()
+    monitor_test()

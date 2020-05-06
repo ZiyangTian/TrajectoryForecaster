@@ -9,6 +9,7 @@ import tensorflow as tf
 from forecaster import version
 from forecaster.data import sequence
 from forecaster.run import distribute
+from forecaster.run import flags
 
 
 class Monitor(object):
@@ -67,24 +68,6 @@ class Monitor(object):
             raise FileNotFoundError('Configuration file not found.')
         return utils.attrdict_from_json(config_file)
 
-    def _parse_distribute_config(self, config):
-        distribute_config = config.run.distribute
-        num_workers = len(distribute_config.workers)
-
-        configs = []
-        for i in range(num_workers):
-            config_i = config.copy()
-            config_i.update(
-                distribute={
-                    'type': distribute_config.type,
-                    'tf_config': {
-                        'cluster': {'worker': distribute_config.workers},
-                        'task': {'type': 'worker', 'index': i}}})
-            configs.append(config_i)
-            utils.attrdict_to_json(config_i, os.path.join(self._temp_dir, 'config_{}'.format(i)), indent='\t')
-
-        return configs
-
     def new(self, engine_config_file, raw_data_config_file, overwrite=True):
         config = utils.attrdict_from_json(engine_config_file)
         config.update(
@@ -117,11 +100,18 @@ class Monitor(object):
         return distribute.run_standalone(mode, utils.attrdict_from_json(engine_config_file), overwrite=False)
 
     @classmethod
-    def run_with_flags(cls, flags):
-        job = cls(flags.job_dir)
-        if flags.new:
+    def run_with_flags(cls):
+        flags.define_flags()
+        flags_obj = flags.parse_flags()
+
+        job = cls(flags_obj.job_dir)
+        if flags_obj.new:
             return job.new(
-                flags.engine, flags.raw_data, overwrite=flags.overwrite)
-        if flags.mode is not None:
-            return job.run(
-                flags.mode, as_monitor=flags.as_monitor, engine_config_file=flags.engine, overwrite=flags.overwrite)
+                flags_obj.engine,
+                flags_obj.raw_data,
+                overwrite=flags_obj.overwrite)
+        return job.run(
+            flags_obj.mode,
+            as_monitor=flags_obj.as_monitor,
+            engine_config_file=flags_obj.engine,
+            overwrite=flags_obj.overwrite)

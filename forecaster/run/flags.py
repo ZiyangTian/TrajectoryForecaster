@@ -4,10 +4,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import attrdict
 import tensorflow.compat.v1 as tf
 
 from forecaster.run import keys
-from forecaster.run import monitor
 
 
 def define_flags():
@@ -50,3 +50,15 @@ def define_flags():
     if flags.new:
         tf.flags.mark_flags_as_required(['raw_data', 'job_dir', 'engine'])
     return flags
+
+
+def parse_flags():
+    flags = tf.flags.FLAGS
+    flags_dict = {
+        'job_dir': flags.job_dir,
+        'engine': flags.engine,
+        'overwrite': flags.overwrite}
+    if flags.new:
+        flags_dict.update(type='new', raw_data=flags.raw_data)
+    flags_dict.update(type='run', mode=flags.mode, overwrite=flags.overwrite, as_monitor=flags.as_monitor)
+    return attrdict.AttrDict(flags_dict)

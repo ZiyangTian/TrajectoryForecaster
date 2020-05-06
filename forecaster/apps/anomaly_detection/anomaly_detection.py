@@ -23,6 +23,7 @@ def make_dataset(pattern,
         feature_column_names, sequence_length, group=True, new_names='features')
     label_column_spec = sequence.ReducingColumnsSpec(
         label_column_names, rsv_pos=sequence_length - 1, group=True, new_names='labels')
+
     with tf.name_scope(name or 'make_dataset'):
         dataset = sequence.sequence_dataset(
             [feature_column_spec, label_column_spec],
@@ -36,7 +37,8 @@ def make_dataset(pattern,
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
             dataset = dataset.shuffle(shuffle_buffer_size)
-        dataset = dataset.batch(batch_size)
+        dataset = dataset.batch(batch_size, drop_remainder=True)
+
     return dataset
 
 

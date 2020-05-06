@@ -6,15 +6,15 @@ import shutil
 
 def fresh_dir(dir_path):
     if os.path.exists(dir_path):
-        for file_or_dir in glob.glob(dir_path):
+        for file_or_dir in glob.glob(os.path.join(dir_path, '*')):
             if os.path.isfile(file_or_dir):
                 os.remove(file_or_dir)
             elif os.path.isdir(file_or_dir):
                 shutil.rmtree(file_or_dir)
             else:
                 pass
-        return
-    os.mkdir(dir_path)
+    else:
+        os.mkdir(dir_path)
 
 
 def files_in_dir(dir_path, filter_fn=None, recurrent=False):
@@ -47,8 +47,7 @@ def make_dir(dir_path, cover_if_exists=None):
     """
     if os.path.exists(dir_path):
         if cover_if_exists is True:
-            shutil.rmtree(dir_path)
-            os.mkdir(dir_path)
+            fresh_dir(dir_path)
         elif cover_if_exists is False:
             raise ValueError('Directory already exists: %s.' % dir_path)
     else:
