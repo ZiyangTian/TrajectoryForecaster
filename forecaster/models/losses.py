@@ -6,6 +6,8 @@ from __future__ import unicode_literals
 
 import tensorflow as tf
 
+from tensorflow.python.keras.losses import LossFunctionWrapper
+
 
 def one_hot_with_exception(indicator,
                            num_features=None,
@@ -38,3 +40,21 @@ def sparse_with_exception_softmax_cross_entropy(labels, logits, name=None):
         one_hot_labels = one_hot_with_exception(labels, num_features=tf.shape(logits)[-1])
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_labels, logits=logits)
     return cross_entropy
+
+
+def normalized_mean_square_error(y_true, y_pred, numeric_normalizer_fn=None):
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.cast(y_true, y_pred.dtype)
+    if numeric_normalizer_fn is not None:
+        y_pred = numeric_normalizer_fn(y_pred)
+        y_true = numeric_normalizer_fn(y_true)
+    return tf.keras.losses.mean_squared_error(y_true, y_pred)
+
+
+class NormalizedMeanSquareError(LossFunctionWrapper):
+    def __init__(self, numeric_normalizer_fn=None, name=None):
+        super(NormalizedMeanSquareError, self).__init__(
+            normalized_mean_square_error,
+            name=name or 'normalized_mean_square_error',
+            numeric_normalizer_fn=numeric_normalizer_fn)
+

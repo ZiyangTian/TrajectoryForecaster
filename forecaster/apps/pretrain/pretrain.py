@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from forecaster.apps import base
 from forecaster.data import sequence
+from forecaster.models import layers
 from forecaster.models import networks
 from forecaster.models import optimizers
 
@@ -10,7 +11,6 @@ from forecaster.models import optimizers
 def make_dataset(pattern,
                  raw_data_spec: sequence.RawDataSpec,
                  feature_names,
-                 label_names,
                  sequence_length,
                  shift,
                  stride,
@@ -19,14 +19,12 @@ def make_dataset(pattern,
                  shuffle_buffer_size=None,
                  name=None):
     data_files = tf.io.gfile.glob(pattern)
-    feature_column_spec = sequence.SeqColumnsSpec(
+    column_spec = sequence.SeqColumnsSpec(
         feature_names, sequence_length, group=True, new_names='features')
-    label_column_spec = sequence.ReducingColumnsSpec(
-        label_names, rsv_pos=sequence_length - 1, group=True, new_names='labels')
 
     with tf.name_scope(name or 'make_dataset'):
         dataset = sequence.sequence_dataset(
-            [feature_column_spec, label_column_spec],
+            [column_spec],
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
             name='sequence_dataset')
@@ -42,35 +40,26 @@ def make_dataset(pattern,
     return dataset
 
 
-class AnomalyDetector(tf.keras.Model):
+class PreTrainer(tf.keras.Sequential):
     def __init__(self,
                  num_layers,
                  d_model,
                  num_attention_heads,
                  conv_kernel_size,
-                 num_anomaly_types,
+                 num_features,
                  numeric_normalizer_fn=None,
-                 input_shape=None):
-        super(AnomalyDetector, self).__init__()
-        self._encoder = networks.SequenceEncoder(
+                 numeric_restorer_fn=None):
+        encoder_layer = networks.SequenceEncoder(
             num_layers=num_layers, d_model=d_model,
             num_attention_heads=num_attention_heads, conv_kernel_size=conv_kernel_size,
             numeric_normalizer_fn=numeric_normalizer_fn, name=None)
-        self._head_dense1 = tf.keras.layers.Dense(1)
-        self._head_dense2 = tf.keras.layers.Dense(num_anomaly_types, activation='sigmoid')
-        self._input_shape = input_shape
-
-    def call(self, inputs, **kwargs):
-        inputs.set_shape([None, self._input_shape[0], self._input_shape[1]])
-        encoded = self._encoder(inputs)
-        with tf.name_scope('head'):
-            dense1 = tf.squeeze(self._head_dense1(tf.transpose(encoded, (0, 2, 1))), axis=-1)
-            outputs = self._head_dense2(dense1)
-        return outputs
+        dense_layer = tf.keras.layers.Dense(num_features, name='dense')
+        restorer_layer = layers.FunctionWrapper(numeric_restorer_fn, name='restorer')
+        super(PreTrainer, self).__init__(layers=[encoder_layer, dense_layer, restorer_layer], name='pre_trainer')
 
 
-@base.app('anomaly_detection')
-class AnomalyDetection(base.App):
+@base.app('pre_training')
+class PreTraining(base.App):
     def build(self):
         data_config = self._config.data
         model_config = self._config.model
@@ -84,6 +73,13 @@ class AnomalyDetection(base.App):
                 mean = tf.constant(normalizer_mean, dtype=tf.float32)
                 std = tf.constant(normalizer_std, dtype=tf.float32)
                 ans = (features - mean) / std
+            return ans
+
+        def numeric_restorer_fn(features):
+            with tf.name_scope('numeric_restorer_fn'):
+                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
+                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
+                ans = features * std + mean
             return ans
 
         model = AnomalyDetector(
