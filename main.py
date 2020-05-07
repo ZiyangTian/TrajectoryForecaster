@@ -43,7 +43,7 @@ def monitor_test():
     #     raw_data_config_file='/Users/Tianziyang/projects/AnomalyDetection/data/config.json',
     #     overwrite=False)
 
-    result = monitor.run(forecaster.RunningKeys.EVAL.value, overwrite=False)
+    result = monitor.run(forecaster.RunningKeys.TRAIN_EVAL.value, overwrite=True)
     print(result)
 
 

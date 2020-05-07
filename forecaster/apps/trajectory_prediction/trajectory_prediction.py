@@ -3,15 +3,18 @@ import tensorflow as tf
 
 from forecaster.apps import base
 from forecaster.data import sequence
+from forecaster.models import layers
+from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
 
 
 def make_dataset(pattern,
                  raw_data_spec: sequence.RawDataSpec,
-                 feature_names,
-                 label_names,
-                 sequence_length,
+                 trajectory_feature_names,
+                 other_feature_names,
+                 input_sequence_length,
+                 output_sequence_length,
                  shift,
                  stride,
                  batch_size,
@@ -19,58 +22,68 @@ def make_dataset(pattern,
                  shuffle_buffer_size=None,
                  name=None):
     data_files = tf.io.gfile.glob(pattern)
-    feature_column_spec = sequence.SeqColumnsSpec(
-        feature_names, sequence_length, group=True, new_names='features')
-    label_column_spec = sequence.ReducingColumnsSpec(
-        label_names, rsv_pos=sequence_length - 1, group=True, new_names='labels')
+    full_column_spec = sequence.SeqColumnsSpec(
+        list(trajectory_feature_names) + list(other_feature_names),
+        input_sequence_length + output_sequence_length,
+        group=True, new_names='full_sequence')
+
+    def generate_targes(feature_dict):
+        inputs = feature_dict['full_sequence']
+        targets = inputs[:, -output_sequence_length:, :len(trajectory_feature_names)]
+        return inputs, targets
 
     with tf.name_scope(name or 'make_dataset'):
         dataset = sequence.sequence_dataset(
-            [feature_column_spec, label_column_spec],
+            [full_column_spec],
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
             name='sequence_dataset')
-        dataset = dataset.map(
-            lambda feature_dict: (feature_dict['features'], feature_dict['labels']),
-            num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(generate_targes, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat_infinitely:
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
             dataset = dataset.shuffle(shuffle_buffer_size)
-        dataset = dataset.batch(batch_size, drop_remainder=True)
+        dataset = dataset.batch(batch_size)
 
     return dataset
 
 
-class AnomalyDetector(tf.keras.Model):
+class TrajectoryPredictor(tf.keras.Model):
     def __init__(self,
                  num_layers,
                  d_model,
                  num_attention_heads,
                  conv_kernel_size,
-                 num_anomaly_types,
+                 output_sequence_length,
+                 num_outputs,
+                 mask,
                  numeric_normalizer_fn=None,
+                 numeric_restorer_fn=None,
                  input_shape=None):
-        super(AnomalyDetector, self).__init__()
+        super(TrajectoryPredictor, self).__init__()
+        self._mask = mask
         self._encoder = networks.SequenceEncoder(
             num_layers=num_layers, d_model=d_model,
             num_attention_heads=num_attention_heads, conv_kernel_size=conv_kernel_size,
-            numeric_normalizer_fn=numeric_normalizer_fn, numeric_restorer_fn=None, name=None)
-        self._head_dense1 = tf.keras.layers.Dense(1)
-        self._head_dense2 = tf.keras.layers.Dense(num_anomaly_types, activation='sigmoid')
+            numeric_normalizer_fn=numeric_normalizer_fn, name=None)
+        self._head_dense = tf.keras.layers.Dense(num_outputs)
         self._input_shape = input_shape
+        self._output_sequence_length = output_sequence_length
+        self._numeric_restorer = layers.FunctionWrapper(
+            tf.identity if numeric_restorer_fn is None else numeric_restorer_fn,
+            name='numeric_restorer')
 
     def call(self, inputs, **kwargs):
-        inputs.set_shape([None, self._input_shape[0], self._input_shape[1]])
-        encoded = self._encoder(inputs)
+        encoded = self._encoder(inputs, mask=self._mask)
         with tf.name_scope('head'):
             dense1 = tf.squeeze(self._head_dense1(tf.transpose(encoded, (0, 2, 1))), axis=-1)
-            outputs = self._head_dense2(dense1)
-        return outputs
+            outputs = self._head_dense2(dense1)[:, -self._output_sequence_length:, :]
+            restored_outputs = self._numeric_restorer(outputs)
+        return outputs, restored_outputs
 
 
-@base.app('anomaly_detection')
-class AnomalyDetection(base.App):
+@base.app('trajectory_prediction')
+class TrajectoryPrediction(base.App):
     def build(self):
         data_config = self._config.data
         model_config = self._config.model
@@ -78,25 +91,49 @@ class AnomalyDetection(base.App):
             lambda k: self._config.raw_data.features.__getattr__(k).mean, self._config.data.features))
         normalizer_std = list(map(
             lambda k: self._config.raw_data.features.__getattr__(k).std, self._config.data.features))
+        num_trajectory_features = len(data_config.trajectory_features)
+        num_other_features = len(data_config.other_features)
+        num_features = num_trajectory_features + num_other_features
+
+        input_mask = tf.concat([
+            tf.ones((data_config.input_sequence_length, num_features), dtype=tf.int32),
+            tf.zeros((data_config.output_sequence_length, num_features), dtype=tf.int32)],
+            axis=0)
 
         def numeric_normalizer_fn(features):
             with tf.name_scope('numeric_normalizer_fn'):
-                mean = tf.constant(normalizer_mean, dtype=tf.float32)
-                std = tf.constant(normalizer_std, dtype=tf.float32)
+                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
+                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
                 ans = (features - mean) / std
             return ans
 
-        model = AnomalyDetector(
+        def numeric_restorer_fn(features):
+            with tf.name_scope('numeric_restorer_fn'):
+                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
+                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
+                ans = features * std + mean
+            return ans
+
+        model = TrajectoryPredictor(
             model_config.num_layers, model_config.d_model,
             model_config.num_attention_heads,
             model_config.conv_kernel_size,
+            data_config.output_sequence_length,
             len(data_config.labels),
+            input_mask,
             numeric_normalizer_fn=numeric_normalizer_fn,
+            numeric_restorer_fn=numeric_restorer_fn,
             input_shape=(data_config.sequence_length, len(data_config.features)))
+
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
-            loss='categorical_crossentropy',
-            metrics=['binary_accuracy'])
+            loss='mse',
+            metrics=[
+                metrics.DestinationDeviation(),
+                metrics.MinDeviation(),
+                metrics.MeanDeviation(),
+                metrics.MaxDeviation()],
+            loss_weights=(1, 0))
         return model
 
     @property
@@ -106,9 +143,10 @@ class AnomalyDetection(base.App):
         return make_dataset(
             os.path.join(self._config.raw_data.train_dir, '*.csv'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
-            data_config.features,
-            data_config.labels,
-            data_config.sequence_length,
+            data_config.trajectory_features,
+            data_config.other_features,
+            data_config.input_sequence_length,
+            data_config.output_sequence_length,
             train_config.data_shift,
             data_config.stride,
             train_config.batch_size,
@@ -123,9 +161,10 @@ class AnomalyDetection(base.App):
         return make_dataset(
             os.path.join(self._config.raw_data.eval_dir, '*.csv'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
-            data_config.features,
-            data_config.labels,
-            data_config.sequence_length,
+            data_config.trajectory_features,
+            data_config.other_features,
+            data_config.input_sequence_length,
+            data_config.output_sequence_length,
             eval_config.data_shift,
             data_config.stride,
             eval_config.batch_size,
@@ -140,9 +179,10 @@ class AnomalyDetection(base.App):
         return make_dataset(
             os.path.join(self._config.raw_data.test_dir, '*.csv'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
-            data_config.features,
-            data_config.labels,
-            data_config.sequence_length,
+            data_config.trajectory_features,
+            data_config.other_features,
+            data_config.input_sequence_length,
+            data_config.output_sequence_length,
             predict_config.data_shift,
             data_config.stride,
             predict_config.batch_size,

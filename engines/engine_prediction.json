@@ -1,0 +1,49 @@
+{
+    "app": "trajectory_prediction",
+	"data": {
+		"trajectory_features": [
+            "x",
+			"y",
+			"z"
+		],
+		"other_features": [
+			"xt",
+            "yt",
+            "zt"
+		],
+		"input_sequence_length": 40,
+        "output_sequence_length": 20,
+        "stride": 100
+    },
+	"model": {
+        "num_layers": 3,
+        "d_model": 32,
+        "num_attention_heads": 4,
+        "conv_kernel_size": 3,
+		"optimizer": {
+			"type": "adam",
+			"learning_rate": 0.001
+		}
+	},
+	"run": {
+		"train": {
+            "data_shift": 1,
+			"batch_size": 128,
+            "shuffle_buffer_size": 10000,
+            "epochs":100,
+            "steps_per_epoch": 1000
+        },
+		"eval": {
+            "data_shift": 1,
+			"batch_size": 128
+		},
+        "predict": {
+            "data_shift": 1,
+			"batch_size": 128
+		},
+        "distribute": {
+             "type": null,
+             "workers": ["localhost: 6001", "localhost: 6002", "localhost: 6003"]
+        }
+	}
+}

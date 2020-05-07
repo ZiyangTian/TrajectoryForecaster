@@ -100,13 +100,11 @@ class SequenceEncoder(tf.keras.layers.Layer):
                  num_attention_heads,
                  conv_kernel_size,
                  numeric_normalizer_fn=None,
-                 numeric_restorer_fn=None,
                  name=None):
         super(SequenceEncoder, self).__init__(name=name or 'sequence_encoder')
-        if numeric_normalizer_fn is None:
-            self._numeric_normalizer = None
-        else:
-            self._numeric_normalizer = layers.FunctionWrapper(numeric_normalizer_fn, name='numeric_normalizer')
+        self._numeric_normalizer = layers.FunctionWrapper(
+            tf.identity if numeric_normalizer_fn is None else numeric_normalizer_fn,
+            name='numeric_normalizer')
         self._diff = self._diff = layers.FunctionWrapper(
             functools.partial(diff.diff_1_pad, axis=-2, padding_value=None), name='diff')
         self._sequence_concatenate = tf.keras.layers.Concatenate(axis=-1, name='sequence_concatenate')
@@ -119,16 +117,21 @@ class SequenceEncoder(tf.keras.layers.Layer):
             encoder_layers.append(
                 EncoderLayer(d_model, num_attention_heads, conv_kernel_size, name='layer_{}'.format(i)))
         self._encoder_layers = tf.keras.Sequential(encoder_layers, name='encoder_layers')
-        if numeric_restorer_fn is None:
-            self._numeric_restorer = None
-        else:
-            self._numeric_restorer = layers.FunctionWrapper(numeric_restorer_fn, name='numeric_restorer')
 
     def call(self, inputs, mask=None, **kwargs):
+        """
+
+        :param inputs:
+        :param mask: 0 for mask, 1 for not mask.
+        :param kwargs:
+        :return:
+        """
         del kwargs
         if mask is None:
-            mask = tf.zeros_like(inputs, dtype=inputs.dtype)
-        mask = tf.cast(mask, dtype=inputs.dtype)
+            mask = tf.ones_like(inputs, dtype=inputs.dtype)
+        else:
+            inputs = tf.where(tf.cast(mask, tf.bool), inputs, tf.zeros_like(inputs, dtype=inputs.dtype))
+            mask = tf.cast(mask, dtype=inputs.dtype)
 
         if self._numeric_normalizer is not None:
             inputs = self._numeric_normalizer(inputs)
@@ -139,8 +142,4 @@ class SequenceEncoder(tf.keras.layers.Layer):
         encoder_layer_inputs = self._embedding_concatenate([sequence_embedding, mask_embedding])
         encoder_layer_inputs = self._dense(encoder_layer_inputs)
         outputs = self._encoder_layers(encoder_layer_inputs)
-
-        if self._numeric_restorer is None:
-            return outputs
-        restored_outputs = self._numeric_restorer(outputs)
-        return outputs, restored_outputs
+        return outputs
