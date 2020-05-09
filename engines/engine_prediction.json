@@ -7,9 +7,9 @@
 			"z"
 		],
 		"other_features": [
-			"xt",
-            "yt",
-            "zt"
+			"vx",
+            "vy",
+            "vz"
 		],
 		"input_sequence_length": 40,
         "output_sequence_length": 20,
@@ -17,9 +17,9 @@
     },
 	"model": {
         "num_layers": 3,
-        "d_model": 32,
+        "d_model": 64,
         "num_attention_heads": 4,
-        "conv_kernel_size": 3,
+        "conv_kernel_size": 10,
 		"optimizer": {
 			"type": "adam",
 			"learning_rate": 0.001
@@ -35,7 +35,8 @@
         },
 		"eval": {
             "data_shift": 1,
-			"batch_size": 128
+			"batch_size": 128,
+            "validation_steps": 1000
 		},
         "predict": {
             "data_shift": 1,

@@ -4,6 +4,7 @@ import tensorflow as tf
 from forecaster.apps import base
 from forecaster.data import sequence
 from forecaster.models import layers
+from forecaster.models import losses
 from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
@@ -58,8 +59,7 @@ class TrajectoryPredictor(tf.keras.Model):
                  num_outputs,
                  mask,
                  numeric_normalizer_fn=None,
-                 numeric_restorer_fn=None,
-                 input_shape=None):
+                 numeric_restorer_fn=None):
         super(TrajectoryPredictor, self).__init__()
         self._mask = mask
         self._encoder = networks.SequenceEncoder(
@@ -67,7 +67,6 @@ class TrajectoryPredictor(tf.keras.Model):
             num_attention_heads=num_attention_heads, conv_kernel_size=conv_kernel_size,
             numeric_normalizer_fn=numeric_normalizer_fn, name=None)
         self._head_dense = tf.keras.layers.Dense(num_outputs)
-        self._input_shape = input_shape
         self._output_sequence_length = output_sequence_length
         self._numeric_restorer = layers.FunctionWrapper(
             tf.identity if numeric_restorer_fn is None else numeric_restorer_fn,
@@ -76,10 +75,9 @@ class TrajectoryPredictor(tf.keras.Model):
     def call(self, inputs, **kwargs):
         encoded = self._encoder(inputs, mask=self._mask)
         with tf.name_scope('head'):
-            dense1 = tf.squeeze(self._head_dense1(tf.transpose(encoded, (0, 2, 1))), axis=-1)
-            outputs = self._head_dense2(dense1)[:, -self._output_sequence_length:, :]
-            restored_outputs = self._numeric_restorer(outputs)
-        return outputs, restored_outputs
+            outputs = self._head_dense(encoded)[:, -self._output_sequence_length:, :]
+            outputs = self._numeric_restorer(outputs)
+        return outputs
 
 
 @base.app('trajectory_prediction')
@@ -100,40 +98,30 @@ class TrajectoryPrediction(base.App):
             tf.zeros((data_config.output_sequence_length, num_features), dtype=tf.int32)],
             axis=0)
 
-        def numeric_normalizer_fn(features):
-            with tf.name_scope('numeric_normalizer_fn'):
-                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
-                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
-                ans = (features - mean) / std
-            return ans
-
-        def numeric_restorer_fn(features):
-            with tf.name_scope('numeric_restorer_fn'):
-                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
-                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
-                ans = features * std + mean
-            return ans
+        with tf.name_scope('get_normalizer_params'):
+            input_normalizer_mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
+            input_normalizer_std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
+            output_normalizer_mean = input_normalizer_mean[:num_trajectory_features]
+            output_normalizer_std = input_normalizer_std[:num_trajectory_features]
 
         model = TrajectoryPredictor(
             model_config.num_layers, model_config.d_model,
             model_config.num_attention_heads,
             model_config.conv_kernel_size,
             data_config.output_sequence_length,
-            len(data_config.labels),
+            num_trajectory_features,
             input_mask,
-            numeric_normalizer_fn=numeric_normalizer_fn,
-            numeric_restorer_fn=numeric_restorer_fn,
-            input_shape=(data_config.sequence_length, len(data_config.features)))
+            numeric_normalizer_fn=lambda x: (x - input_normalizer_mean) / input_normalizer_std,
+            numeric_restorer_fn=lambda x: x * output_normalizer_std + output_normalizer_mean)
 
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
-            loss='mse',
+            loss=losses.NormalizedMeanSquareError(lambda x: x * output_normalizer_std + output_normalizer_mean),
             metrics=[
                 metrics.DestinationDeviation(),
                 metrics.MinDeviation(),
                 metrics.MeanDeviation(),
-                metrics.MaxDeviation()],
-            loss_weights=(1, 0))
+                metrics.MaxDeviation()])
         return model
 
     @property

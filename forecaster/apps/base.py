@@ -90,6 +90,7 @@ class App(object):
 
     def fit(self):
         train_config = self._config.run.train
+        eval_config = self._config.run.eval
         path_config = self._config.path
         callbacks = [
             tf.keras.callbacks.ModelCheckpoint(
@@ -97,8 +98,7 @@ class App(object):
                 monitor='val_loss',
                 verbose=0,
                 save_best_only=True,
-                save_freq='epoch',
-                load_weights_on_restart=True),
+                save_freq='epoch'),
             tf.keras.callbacks.TensorBoard(
                 log_dir=path_config.tensorboard_dir,
                 histogram_freq=1,
@@ -106,6 +106,7 @@ class App(object):
         return self._model.fit(
             self.train_dataset, epochs=train_config.epochs, verbose=1, callbacks=callbacks,
             validation_data=self.valid_dataset,
+            validation_steps=eval_config.validation_steps,
             steps_per_epoch=train_config.steps_per_epoch)
 
     def evaluate(self):
@@ -116,8 +117,15 @@ class App(object):
         self._model.load_weights(os.path.join(self._config.path.checkpoints_dir, 'best.ckpt'))
         self._model.predict(*args, **kwargs)
 
+    def _warm_started_build(self, warm_start_from=None):
+        self._model = self.build()
+        ckpt_path = os.path.join(self._config.path.checkpoints_dir, 'best.ckpt')
+        if warm_start_from is not None:
+            self._model.load_weights(warm_start_from)
+        elif tf.io.gfile.glob(ckpt_path + '.*'):
+            self._model.load_weights(ckpt_path)
+
     def _build(self, warm_start_from=None):
-        del warm_start_from  # TODO: ...
         distribute_config = self._config.run.distribute
         distribute_type = distribute_config.type
 
@@ -127,6 +135,6 @@ class App(object):
             os.environ['TF_CONFIG'] = json.dumps(dict(tf_config))
             strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(communication)
             with strategy.scope():
-                self._model = self.build()
+                self._warm_started_build(warm_start_from=warm_start_from)
         else:
-            self._model = self.build()
+            self._warm_started_build(warm_start_from=warm_start_from)
