@@ -9,10 +9,10 @@ def scaled_dot_product_attention(q, k, v, name=None):
     """ Compute attention weights.
         Arguments
             q: query, shape == (..., seq_len_q, depth)
-            k: key, shape == (..., seq_len, depth)
-            v: value, shape == (..., seq_len, depth_v)
+            k: key, shape == (..., sequence_length, depth)
+            v: value, shape == (..., sequence_length, depth_v)
             mask: A float Tensor with shape broadcastable to
-                  (..., seq_len_q, seq_len). Defaults to None.
+                  (..., seq_len_q, sequence_length). Defaults to None.
         Returns
             Outputs. Attention weights. (..., seq_len_q, depth_v)
         * q, k, v must have must have matching leading dimensions.
@@ -20,7 +20,7 @@ def scaled_dot_product_attention(q, k, v, name=None):
     with tf.name_scope(name or 'scaled_dot_product_attention'):
         matmul_qk = tf.matmul(q, k, transpose_b=True)
         dk = tf.cast(tf.shape(k)[-1], tf.float32)
-        scaled_attention_logits = matmul_qk / tf.math.sqrt(dk)  # (..., seq_len_q, seq_len)
+        scaled_attention_logits = matmul_qk / tf.math.sqrt(dk)  # (..., seq_len_q, sequence_length)
 
         attention_weights = tf.nn.softmax(scaled_attention_logits, axis=-1)
         attention_output = tf.matmul(attention_weights, v)
@@ -51,9 +51,9 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         q, k, v = inputs
         batch_size = tf.shape(q)[0]
 
-        q = self.wq(q)  # (batch_size, seq_len, d_model)
-        k = self.wk(k)  # (batch_size, seq_len, d_model)
-        v = self.wv(v)  # (batch_size, seq_len, d_model)
+        q = self.wq(q)  # (batch_size, sequence_length, d_model)
+        k = self.wk(k)  # (batch_size, sequence_length, d_model)
+        v = self.wv(v)  # (batch_size, sequence_length, d_model)
         q = self.split_heads(q, batch_size)  # (batch_size, num_heads, seq_len_q, depth)
         k = self.split_heads(k, batch_size)  # (batch_size, num_heads, seq_len_k, depth)
         v = self.split_heads(v, batch_size)  # (batch_size, num_heads, seq_len_v, depth)

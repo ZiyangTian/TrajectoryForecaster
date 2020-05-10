@@ -28,7 +28,7 @@ def make_dataset(pattern,
         input_sequence_length + output_sequence_length,
         group=True, new_names='full_sequence')
 
-    def generate_targes(feature_dict):
+    def generate_targets(feature_dict):
         inputs = feature_dict['full_sequence']
         targets = inputs[:, -output_sequence_length:, :len(trajectory_feature_names)]
         return inputs, targets
@@ -39,7 +39,7 @@ def make_dataset(pattern,
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
             name='sequence_dataset')
-        dataset = dataset.map(generate_targes, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(generate_targets, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat_infinitely:
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
