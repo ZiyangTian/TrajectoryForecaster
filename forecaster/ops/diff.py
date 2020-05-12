@@ -5,9 +5,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import tensorflow as tf
+import utils
 
-from forecaster.maths import array
-from utils import typing as os_typing
+from forecaster.ops import array
 
 
 def diff_1(value, axis=0, name=None):
@@ -37,7 +37,7 @@ def diff_n(value, axis=0, orders=(1,), name=None):
     Returns:
         A `list` of difference `Tensor`s, corresponding to `orders`.
     """
-    orders = os_typing.normalize_list_of_type(orders, int)
+    orders = utils.normalize_list_of_type(orders, int)
     diff_tensors_list = [None] * len(orders)
     with tf.name_scope(name or 'diff_n'):
         for order in range(1, max(orders) + 1):

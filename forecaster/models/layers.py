@@ -7,8 +7,8 @@ from __future__ import unicode_literals
 import functools
 import tensorflow as tf
 
-from forecaster.maths.diff import diff_1_pad
-from forecaster.maths.diff import diff_pad
+from forecaster.ops.diff import diff_1_pad
+from forecaster.ops.diff import diff_pad
 
 
 class FunctionWrapper(tf.keras.layers.Layer):

@@ -2,7 +2,7 @@ import functools
 import tensorflow as tf
 
 from forecaster.models import layers
-from forecaster.maths import diff
+from forecaster.ops import diff
 
 
 def scaled_dot_product_attention(q, k, v, name=None):
@@ -87,8 +87,8 @@ class EncoderLayer(tf.keras.layers.Layer):
         :return:
         """
         del kwargs
-        q = self._conv(inputs)
-        k = v = self._rnn(inputs)
+        q = k = self._rnn(inputs)
+        v = self._conv(inputs)
         attention_output = self._attention((q, k, v))
         outputs = self._layer_norm(attention_output + inputs)
         return outputs
