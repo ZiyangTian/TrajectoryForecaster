@@ -1,18 +1,16 @@
 {
-    "name": "anomaly_detection_test",
-    "train_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/train/raw",
-    "eval_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/test/raw",
-    "test_dir": "/Users/Tianziyang/projects/AnomalyDetection/data/test/raw",
+    "name": "test",
+    "train_dir": "/Users/Tianziyang/projects/data_for_test",
+    "eval_dir": "/Users/Tianziyang/projects/data_for_test",
+    "test_dir": "/Users/Tianziyang/projects/data_for_test",
 	"columns": [
         "t",
 	    "x",
         "y",
         "z",
-        "distance_anomaly",
-        "height_anomaly",
-        "high_speed_anomaly",
-        "low_speed_anomaly",
-        "airline_anomaly"
+        "vx",
+        "vy",
+        "vz"
     ],
 	"features": {
 		"t": {
@@ -22,42 +20,40 @@
 		"x": {
 			"dtype": "float",
 			"default": 0.0,
-			"mean": 0.0,
-			"std": 300.0
+			"mean": -3.00491e+06,
+			"std": 2.38348e+06
 		},
         "y": {
 			"dtype": "float",
 			"default": 0.0,
-			"mean": 0.0,
-			"std": 300.0
+			"mean": 4.89326e+06,
+			"std": 1.50208e+06
 		},
         "z": {
 			"dtype": "float",
 			"default": 0.0,
-			"mean": 0.0,
-			"std": 10.0
+			"mean": -5.444e+05,
+			"std": 3.09668e+05
 		},
-        "distance_anomaly": {
-			"dtype": "int",
-			"default": 0
+        "vx": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": -1.030848e+01,
+			"std": 2.31023e+02
 		},
-        "height_anomaly": {
-			"dtype": "int",
-			"default": 0
+        "vy": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": -5.65569e+01,
+			"std": 7.244796e+02
 		},
-        "high_speed_anomaly": {
-			"dtype": "int",
-			"default": 0
-		},
-        "low_speed_anomaly": {
-			"dtype": "int",
-			"default": 0
-		},
-        "airline_anomaly": {
-			"dtype": "int",
-			"default": 0
+        "vz": {
+			"dtype": "float",
+			"default": 0.0,
+			"mean": 4.712925e+03,
+			"std": 1.39569e+03
 		}
     },
-	"block_size": 5,
+	"block_size": 20780,
     "header": false
 }

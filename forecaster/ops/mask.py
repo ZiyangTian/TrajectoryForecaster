@@ -32,7 +32,10 @@ class SequenceMaskGenerator(object):
             mask_end_pos = mask_start_pos + mask_size
 
             unmasked = tf.range(self._sequence_length)
-            unmasked = tf.cond(scatter_mode, lambda: tf.random.shuffle(unmasked), lambda: unmasked)
+            unmasked = tf.cond(
+                tf.convert_to_tensor(scatter_mode, tf.bool),
+                lambda: tf.random.shuffle(unmasked),
+                lambda: unmasked)
             mask_sequence = tf.where(
                 tf.logical_and(
                     tf.greater_equal(unmasked, mask_start_pos),
@@ -50,10 +53,11 @@ def sequence_mask_along_axis(shape, axis,
                              name=None):
     with tf.name_scope(name or 'sequence_mask_along_axis'):
         tensor_shape = tf.convert_to_tensor(shape, dtype=tf.int32)
-        tensor_dim = tf.size(tensor_shape)
+        tensor_rank = tf.size(tensor_shape)
+        axis = tf.convert_to_tensor(axis, dtype=tf.int32)
         axis = tf.cond(
             tf.less(axis, 0),
-            lambda: tf.shape(tensor_shape)[0] + axis,
+            lambda: tensor_rank + axis,
             lambda: axis)
         sequence_length = tensor_shape[axis]
         generator = SequenceMaskGenerator(
@@ -77,7 +81,7 @@ def sequence_mask_along_axis(shape, axis,
 
         mask_tensor = tf.transpose(
             tf.reshape(mask_array.stack(), tf.concat([unmasked_shape, masked_shape, masking_shape], 0)),
-            perm=tf.concat([tf.range(0, axis), [tensor_dim - 1], tf.range(axis, tensor_dim - 1)], 0))
+            perm=tf.concat([tf.range(0, axis), [tensor_rank - 1], tf.range(axis, tensor_rank - 1)], 0))
         mask_tensor = tf.reshape(mask_tensor, tensor_shape)
         mask_tensor.set_shape(shape)
     return mask_tensor

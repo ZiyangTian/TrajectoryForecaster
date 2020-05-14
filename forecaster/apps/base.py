@@ -101,7 +101,7 @@ class App(object):
                 save_freq='epoch'),
             tf.keras.callbacks.TensorBoard(
                 log_dir=path_config.tensorboard_dir,
-                histogram_freq=1,
+                histogram_freq=1, profile_batch=0,
                 update_freq='batch')]
         return self._model.fit(
             self.train_dataset, epochs=train_config.epochs, verbose=1, callbacks=callbacks,

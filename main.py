@@ -37,14 +37,17 @@ def main():
 
 
 def monitor_test():
-    monitor = forecaster.Monitor('/Users/Tianziyang/projects/saved/job_0')
-    # monitor.new(
-    #     engine_config_file='engines/engine_detection.json',
-    #     raw_data_config_file='/Users/Tianziyang/projects/AnomalyDetection/data/config.json',
-    #     overwrite=False)
+    monitor = forecaster.Monitor('/Users/Tianziyang/projects/saved/job_1')
 
-    result = monitor.run(forecaster.RunningKeys.TRAIN_EVAL.value, overwrite=True)
-    print(result)
+    # monitor.new(
+    #     engine_config_file='engines/engine_pretrain.json',
+    #     raw_data_config_file='engines/data.json',
+    #     overwrite=True)
+
+    monitor.run(
+        forecaster.RunningKeys.TRAIN_EVAL.value,
+        engine_config_file=None,
+        overwrite=True)
 
 
 def main():
@@ -56,4 +59,5 @@ def main():
     print(x.numpy())
 
 
-main()
+if __name__ == '__main__':
+    monitor_test()

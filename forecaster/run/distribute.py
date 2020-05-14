@@ -83,7 +83,7 @@ def run_as_monitor(mode, config, overwrite=None):
     :return:
     """
     if overwrite:
-        if mode == keys.RunningKeys.train_eval.value:
+        if mode == keys.RunningKeys.TRAIN_EVAL.value:
             path_config = config.path
             utils.fresh_dir(path_config.checkpoints_dir)
             utils.fresh_dir(path_config.tensorboard_dir)

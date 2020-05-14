@@ -127,10 +127,9 @@ class SequenceEncoder(tf.keras.layers.Layer):
         :return:
         """
         del kwargs
-        if isinstance(inputs, tuple):
+        if isinstance(inputs, (tuple, list)):
             inputs, mask = inputs
             if mask is not None:
-                del mask
                 tf.compat.v1.logging.warn('Mask is already include in argument `inputs`, '
                                           'argument `mask` is neglected.')
         with tf.name_scope('apply_mask'):

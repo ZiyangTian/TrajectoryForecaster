@@ -6,6 +6,7 @@ from forecaster.apps import base
 from forecaster.apps.pretrain import masker as _masker
 from forecaster.data import sequence
 from forecaster.models import layers
+from forecaster.models import losses
 from forecaster.models import networks
 from forecaster.models import optimizers
 
@@ -36,7 +37,6 @@ def make_dataset(pattern,
                 (feature_dict['features'], masker.generate_mask((sequence_length, len(feature_names)))),
                 feature_dict['features']),
             num_parallel_calls=tf.data.experimental.AUTOTUNE)
-        dataset = dataset.cache()
         if repeat_infinitely:
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
@@ -69,23 +69,21 @@ class PreTraining(base.App):
     def build(self):
         data_config = self._config.data
         model_config = self._config.model
-        normalizer_mean = list(map(
-            lambda k: self._config.raw_data.features.__getattr__(k).mean, self._config.data.features))
-        normalizer_std = list(map(
-            lambda k: self._config.raw_data.features.__getattr__(k).std, self._config.data.features))
+        normalizer_mean = tf.convert_to_tensor(list(map(
+            lambda k: self._config.raw_data.features.__getattr__(k).mean, self._config.data.features)),
+            dtype=tf.float32)
+        normalizer_std = tf.convert_to_tensor(list(map(
+            lambda k: self._config.raw_data.features.__getattr__(k).std, self._config.data.features)),
+            dtype=tf.float32)
 
         def numeric_normalizer_fn(features):
             with tf.name_scope('numeric_normalizer_fn'):
-                mean = tf.constant(normalizer_mean, dtype=tf.float32)
-                std = tf.constant(normalizer_std, dtype=tf.float32)
-                ans = (features - mean) / std
+                ans = (features - normalizer_mean) / normalizer_std
             return ans
 
         def numeric_restorer_fn(features):
             with tf.name_scope('numeric_restorer_fn'):
-                mean = tf.convert_to_tensor(normalizer_mean, dtype=tf.float32)
-                std = tf.convert_to_tensor(normalizer_std, dtype=tf.float32)
-                ans = features * std + mean
+                ans = features * normalizer_std + normalizer_mean
             return ans
 
         model = PreTrainer(
@@ -97,20 +95,21 @@ class PreTraining(base.App):
             numeric_restorer_fn=numeric_restorer_fn)
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
-            loss='categorical_crossentropy',
-            metrics=['binary_accuracy'])
+            loss=losses.NormalizedMeanSquareError(numeric_normalizer_fn=numeric_normalizer_fn),
+            metrics=['mae'])
         return model
 
     @property
     def train_dataset(self):
         data_config = self._config.data
+        mask_config = data_config.mask
         train_config = self._config.run.train
         return make_dataset(
-            os.path.join(self._config.raw_data.train_dir, '*.csv'),
+            os.path.join(self._config.raw_data.train_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
-            data_config.labels,
             data_config.sequence_length,
+            _masker.Masker.from_config(mask_config),
             train_config.data_shift,
             data_config.stride,
             train_config.batch_size,
@@ -121,30 +120,32 @@ class PreTraining(base.App):
     @property
     def valid_dataset(self):
         data_config = self._config.data
+        mask_config = data_config.mask
         eval_config = self._config.run.eval
         return make_dataset(
-            os.path.join(self._config.raw_data.eval_dir, '*.csv'),
+            os.path.join(self._config.raw_data.eval_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
-            data_config.labels,
             data_config.sequence_length,
+            _masker.Masker.from_config(mask_config),
             eval_config.data_shift,
             data_config.stride,
             eval_config.batch_size,
-            repeat_infinitely=False,
+            repeat_infinitely=True,
             shuffle_buffer_size=None,
             name='valid_dataset')
 
     @property
     def test_dataset(self):
         data_config = self._config.data
+        mask_config = data_config.mask
         predict_config = self._config.run.predict
         return make_dataset(
-            os.path.join(self._config.raw_data.test_dir, '*.csv'),
+            os.path.join(self._config.raw_data.test_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
-            data_config.labels,
             data_config.sequence_length,
+            _masker.Masker.from_config(mask_config),
             predict_config.data_shift,
             data_config.stride,
             predict_config.batch_size,
