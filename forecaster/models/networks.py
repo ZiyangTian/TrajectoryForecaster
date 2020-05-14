@@ -127,11 +127,18 @@ class SequenceEncoder(tf.keras.layers.Layer):
         :return:
         """
         del kwargs
-        if mask is None:
-            mask = tf.ones_like(inputs, dtype=inputs.dtype)
-        else:
-            inputs = tf.where(tf.cast(mask, tf.bool), inputs, tf.zeros_like(inputs, dtype=inputs.dtype))
-            mask = tf.cast(mask, dtype=inputs.dtype)
+        if isinstance(inputs, tuple):
+            inputs, mask = inputs
+            if mask is not None:
+                del mask
+                tf.compat.v1.logging.warn('Mask is already include in argument `inputs`, '
+                                          'argument `mask` is neglected.')
+        with tf.name_scope('apply_mask'):
+            if mask is None:
+                mask = tf.ones_like(inputs, dtype=inputs.dtype)
+            else:
+                inputs = tf.where(tf.cast(mask, tf.bool), inputs, tf.zeros_like(inputs, dtype=inputs.dtype))
+                mask = tf.cast(mask, dtype=inputs.dtype)
 
         if self._numeric_normalizer is not None:
             inputs = self._numeric_normalizer(inputs)

@@ -51,9 +51,9 @@ def main():
     import tensorflow as tf
     from forecaster.ops.mask import sequence_mask_along_axis
     # g = SequenceMaskGenerator(10, 3, 8, dtype=tf.int32)
-    x=sequence_mask_along_axis((3, 4, 10, 2), -2, 3, 8, dtype=tf.int32, scatter_mode=False)
+    x=sequence_mask_along_axis((3, 2, 10), -1, 3, 8, dtype=tf.int32, scatter_mode=False)
+    x = tf.transpose(x, (0, 2, 1))
     print(x.numpy())
 
 
-if __name__ == '__main__':
-    main()
+main()

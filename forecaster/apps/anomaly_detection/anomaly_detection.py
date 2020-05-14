@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from forecaster.apps import base
 from forecaster.data import sequence
+from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
 
@@ -96,7 +97,7 @@ class AnomalyDetection(base.App):
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
             loss='categorical_crossentropy',
-            metrics=['binary_accuracy'])
+            metrics=['binary_accuracy', tf.keras.metrics.AUC()])
         return model
 
     @property

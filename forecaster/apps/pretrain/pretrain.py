@@ -1,7 +1,9 @@
+import collections
 import os
 import tensorflow as tf
 
 from forecaster.apps import base
+from forecaster.apps.pretrain import masker as _masker
 from forecaster.data import sequence
 from forecaster.models import layers
 from forecaster.models import networks
@@ -12,6 +14,7 @@ def make_dataset(pattern,
                  raw_data_spec: sequence.RawDataSpec,
                  feature_names,
                  sequence_length,
+                 masker: _masker.Masker,
                  shift,
                  stride,
                  batch_size,
@@ -29,13 +32,16 @@ def make_dataset(pattern,
             shift=shift, stride=stride, shuffle_files=True,
             name='sequence_dataset')
         dataset = dataset.map(
-            lambda feature_dict: (feature_dict['features'], feature_dict['labels']),
+            lambda feature_dict: (
+                (feature_dict['features'], masker.generate_mask((sequence_length, len(feature_names)))),
+                feature_dict['features']),
             num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.cache()
         if repeat_infinitely:
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
             dataset = dataset.shuffle(shuffle_buffer_size)
-        dataset = dataset.batch(batch_size, drop_remainder=True)
+        dataset = dataset.batch(batch_size, drop_remainder=True).prefetch(batch_size)
 
     return dataset
 
@@ -82,13 +88,13 @@ class PreTraining(base.App):
                 ans = features * std + mean
             return ans
 
-        model = AnomalyDetector(
+        model = PreTrainer(
             model_config.num_layers, model_config.d_model,
             model_config.num_attention_heads,
             model_config.conv_kernel_size,
-            len(data_config.labels),
+            len(data_config.features),
             numeric_normalizer_fn=numeric_normalizer_fn,
-            input_shape=(data_config.sequence_length, len(data_config.features)))
+            numeric_restorer_fn=numeric_restorer_fn)
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
             loss='categorical_crossentropy',

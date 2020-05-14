@@ -57,4 +57,3 @@ class NormalizedMeanSquareError(LossFunctionWrapper):
             normalized_mean_square_error,
             name=name or 'normalized_mean_square_error',
             numeric_normalizer_fn=numeric_normalizer_fn)
-
