@@ -57,3 +57,20 @@ class NormalizedMeanSquareError(LossFunctionWrapper):
             normalized_mean_square_error,
             name=name or 'normalized_mean_square_error',
             numeric_normalizer_fn=numeric_normalizer_fn)
+
+
+def normalized_mean_square_error_at_mask(y_true, y_pred, numeric_normalizer_fn=None):
+    weights = 1. - y_true[:, 1]
+    y_true = y_true[:, 0]
+    if numeric_normalizer_fn is not None:
+        y_pred = numeric_normalizer_fn(y_pred)
+        y_true = numeric_normalizer_fn(y_true)
+    return tf.keras.losses.mean_squared_error(weights * y_true, weights * y_pred)
+
+
+class NormalizedMeanSquareErrorAtMask(LossFunctionWrapper):
+    def __init__(self, numeric_normalizer_fn=None, name=None):
+        super(NormalizedMeanSquareErrorAtMask, self).__init__(
+            normalized_mean_square_error_at_mask,
+            name=name or 'normalized_mean_square_error_at_mask',
+            numeric_normalizer_fn=numeric_normalizer_fn)

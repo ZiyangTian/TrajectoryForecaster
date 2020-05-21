@@ -30,7 +30,7 @@ def make_dataset(pattern,
 
     def generate_targets(feature_dict):
         inputs = feature_dict['full_sequence']
-        targets = inputs[:, -output_sequence_length:, :len(trajectory_feature_names)]
+        targets = inputs[-output_sequence_length:, :len(trajectory_feature_names)]
         return inputs, targets
 
     with tf.name_scope(name or 'make_dataset'):
@@ -86,9 +86,11 @@ class TrajectoryPrediction(base.App):
         data_config = self._config.data
         model_config = self._config.model
         normalizer_mean = list(map(
-            lambda k: self._config.raw_data.features.__getattr__(k).mean, self._config.data.features))
+            lambda k: self._config.raw_data.features.__getattr__(k).mean,
+            data_config.trajectory_features + data_config.other_features))
         normalizer_std = list(map(
-            lambda k: self._config.raw_data.features.__getattr__(k).std, self._config.data.features))
+            lambda k: self._config.raw_data.features.__getattr__(k).std,
+            data_config.trajectory_features + data_config.other_features))
         num_trajectory_features = len(data_config.trajectory_features)
         num_other_features = len(data_config.other_features)
         num_features = num_trajectory_features + num_other_features
@@ -116,7 +118,7 @@ class TrajectoryPrediction(base.App):
 
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
-            loss=losses.NormalizedMeanSquareError(lambda x: x * output_normalizer_std + output_normalizer_mean),
+            loss=losses.NormalizedMeanSquareError(lambda x: (x - output_normalizer_mean) / output_normalizer_std),
             metrics=[
                 metrics.DestinationDeviation(),
                 metrics.MinDeviation(),
@@ -129,7 +131,7 @@ class TrajectoryPrediction(base.App):
         data_config = self._config.data
         train_config = self._config.run.train
         return make_dataset(
-            os.path.join(self._config.raw_data.train_dir, '*.csv'),
+            os.path.join(self._config.raw_data.train_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.trajectory_features,
             data_config.other_features,
@@ -147,7 +149,7 @@ class TrajectoryPrediction(base.App):
         data_config = self._config.data
         eval_config = self._config.run.eval
         return make_dataset(
-            os.path.join(self._config.raw_data.eval_dir, '*.csv'),
+            os.path.join(self._config.raw_data.eval_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.trajectory_features,
             data_config.other_features,
@@ -156,7 +158,7 @@ class TrajectoryPrediction(base.App):
             eval_config.data_shift,
             data_config.stride,
             eval_config.batch_size,
-            repeat_infinitely=False,
+            repeat_infinitely=True,
             shuffle_buffer_size=None,
             name='valid_dataset')
 
@@ -165,7 +167,7 @@ class TrajectoryPrediction(base.App):
         data_config = self._config.data
         predict_config = self._config.run.predict
         return make_dataset(
-            os.path.join(self._config.raw_data.test_dir, '*.csv'),
+            os.path.join(self._config.raw_data.test_dir, '*.txt'),
             sequence.RawDataSpec.from_config(self._config.raw_data),
             data_config.trajectory_features,
             data_config.other_features,

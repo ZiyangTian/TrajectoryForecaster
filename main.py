@@ -39,14 +39,14 @@ def main():
 def monitor_test():
     monitor = forecaster.Monitor('/Users/Tianziyang/projects/saved/job_1')
 
-    # monitor.new(
-    #     engine_config_file='engines/engine_pretrain.json',
-    #     raw_data_config_file='engines/data.json',
-    #     overwrite=True)
+    monitor.new(
+        engine_config_file='engines/engine_prediction.json',
+        raw_data_config_file='engines/data.json',
+        overwrite=True)
 
     monitor.run(
         forecaster.RunningKeys.TRAIN_EVAL.value,
-        engine_config_file=None,
+        engine_config_file='engines/engine_prediction.json',
         overwrite=True)
 
 
@@ -54,7 +54,7 @@ def main():
     import tensorflow as tf
     from forecaster.ops.mask import sequence_mask_along_axis
     # g = SequenceMaskGenerator(10, 3, 8, dtype=tf.int32)
-    x=sequence_mask_along_axis((3, 2, 10), -1, 3, 8, dtype=tf.int32, scatter_mode=False)
+    x = sequence_mask_along_axis((3, 2, 10), -1, 3, 8, dtype=tf.int32, scatter_mode=False)
     x = tf.transpose(x, (0, 2, 1))
     print(x.numpy())
 

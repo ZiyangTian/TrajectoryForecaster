@@ -32,11 +32,14 @@ def make_dataset(pattern,
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
             name='sequence_dataset')
-        dataset = dataset.map(
-            lambda feature_dict: (
-                (feature_dict['features'], masker.generate_mask((sequence_length, len(feature_names)))),
-                feature_dict['features']),
-            num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        def add_mask(feature_dict):
+            mask = masker.generate_mask((sequence_length, len(feature_names)))
+            full_tensor = feature_dict['features']
+            targets = tf.stack([full_tensor, tf.cast(mask, tf.float32)], axis=0)
+            return (full_tensor, mask), targets
+
+        dataset = dataset.map(add_mask, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat_infinitely:
             dataset = dataset.repeat()
         if shuffle_buffer_size is not None:
@@ -46,7 +49,7 @@ def make_dataset(pattern,
     return dataset
 
 
-class PreTrainer(tf.keras.Sequential):
+class PreTrainer(tf.keras.Model):
     def __init__(self,
                  num_layers,
                  d_model,
@@ -54,14 +57,21 @@ class PreTrainer(tf.keras.Sequential):
                  conv_kernel_size,
                  num_features,
                  numeric_normalizer_fn=None,
-                 numeric_restorer_fn=None):
-        encoder_layer = networks.SequenceEncoder(
+                 numeric_restorer_fn=None,
+                 name=None):
+        super(PreTrainer, self).__init__(name=name or 'pre_trainer')
+        self._encoder_layer = networks.SequenceEncoder(
             num_layers=num_layers, d_model=d_model,
             num_attention_heads=num_attention_heads, conv_kernel_size=conv_kernel_size,
             numeric_normalizer_fn=numeric_normalizer_fn, name=None)
-        dense_layer = tf.keras.layers.Dense(num_features, name='dense')
-        restorer_layer = layers.FunctionWrapper(numeric_restorer_fn, name='restorer')
-        super(PreTrainer, self).__init__(layers=[encoder_layer, dense_layer, restorer_layer], name='pre_trainer')
+        self._dense_layer = tf.keras.layers.Dense(num_features, name='dense')
+        self._restorer_layer = layers.FunctionWrapper(numeric_restorer_fn, name='restorer')
+
+    def call(self, inputs, **kwargs):
+        encoded = self._encoder_layer(inputs)
+        outputs = self._dense_layer(encoded)
+        outputs = self._restorer_layer(outputs)
+        return outputs
 
 
 @base.app('pre_training')
@@ -95,8 +105,8 @@ class PreTraining(base.App):
             numeric_restorer_fn=numeric_restorer_fn)
         model.compile(
             optimizers.get_optimizer(model_config.optimizer),
-            loss=losses.NormalizedMeanSquareError(numeric_normalizer_fn=numeric_normalizer_fn),
-            metrics=['mae'])
+            loss=losses.NormalizedMeanSquareErrorAtMask(numeric_normalizer_fn=numeric_normalizer_fn),
+            metrics=[])
         return model
 
     @property

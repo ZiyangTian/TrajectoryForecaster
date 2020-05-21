@@ -55,13 +55,3 @@ class MinDeviation(MeanMetricWrapper):
 class DestinationDeviation(MeanMetricWrapper):
     def __init__(self, name='destination_deviation', dtype=None):
         super(DestinationDeviation, self).__init__(destination_deviation, name, dtype=dtype)
-
-
-class MultiBinaryClassificationAUC(tf.keras.metrics.AUC):
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        if sample_weight is not None:
-            sample_weight = tf.reshape(tf.broadcast_to(sample_weight, tf.shape(y_true)), (-1, 1))
-        y_true = tf.reshape(y_true, (-1, 1))
-        y_pred = tf.reshape(y_pred, (-1, 1))
-        return super(MultiBinaryClassificationAUC, self).update_state(y_true, y_pred, sample_weight=sample_weight)

@@ -87,8 +87,8 @@ class EncoderLayer(tf.keras.layers.Layer):
         :return:
         """
         del kwargs
-        q = k = self._rnn(inputs)
-        v = self._conv(inputs)
+        q = v = self._rnn(inputs)
+        k = self._conv(inputs)
         attention_output = self._attention((q, k, v))
         outputs = self._layer_norm(attention_output + inputs)
         return outputs
@@ -100,8 +100,9 @@ class SequenceEncoder(tf.keras.layers.Layer):
                  num_attention_heads,
                  conv_kernel_size,
                  numeric_normalizer_fn=None,
-                 name=None):
-        super(SequenceEncoder, self).__init__(name=name or 'sequence_encoder')
+                 name=None,
+                 **kwargs):
+        super(SequenceEncoder, self).__init__(name=name or 'sequence_encoder', **kwargs)
         self._numeric_normalizer = layers.FunctionWrapper(
             tf.identity if numeric_normalizer_fn is None else numeric_normalizer_fn,
             name='numeric_normalizer')
@@ -128,7 +129,7 @@ class SequenceEncoder(tf.keras.layers.Layer):
         """
         del kwargs
         if isinstance(inputs, (tuple, list)):
-            inputs, mask = inputs
+            inputs, mask = tuple(inputs)
             if mask is not None:
                 tf.compat.v1.logging.warn('Mask is already include in argument `inputs`, '
                                           'argument `mask` is neglected.')
@@ -136,6 +137,7 @@ class SequenceEncoder(tf.keras.layers.Layer):
             if mask is None:
                 mask = tf.ones_like(inputs, dtype=inputs.dtype)
             else:
+                mask = tf.broadcast_to(mask, tf.shape(inputs))
                 inputs = tf.where(tf.cast(mask, tf.bool), inputs, tf.zeros_like(inputs, dtype=inputs.dtype))
                 mask = tf.cast(mask, dtype=inputs.dtype)
 
@@ -149,3 +151,8 @@ class SequenceEncoder(tf.keras.layers.Layer):
         encoder_layer_inputs = self._dense(encoder_layer_inputs)
         outputs = self._encoder_layers(encoder_layer_inputs)
         return outputs
+
+
+if __name__ == '__main__':
+    layer = SequenceEncoder(3, 64, 4, 10, input_shape=(60, 6))
+    print(layer.count_params())

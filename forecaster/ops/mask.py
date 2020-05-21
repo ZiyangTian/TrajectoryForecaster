@@ -55,10 +55,12 @@ def sequence_mask_along_axis(shape, axis,
         tensor_shape = tf.convert_to_tensor(shape, dtype=tf.int32)
         tensor_rank = tf.size(tensor_shape)
         axis = tf.convert_to_tensor(axis, dtype=tf.int32)
-        axis = tf.cond(
-            tf.less(axis, 0),
-            lambda: tensor_rank + axis,
-            lambda: axis)
+        axis = tf.where(tf.less(axis, 0), tensor_rank + axis, axis)  # Use `tf.where` instead of `tf.cond` to
+                                                                     # avoid unknown error in using `tf.cond`.
+        # axis = tf.cond(
+        #     tf.less(axis, 0),
+        #     lambda: tensor_rank + axis,
+        #     lambda: axis)
         sequence_length = tensor_shape[axis]
         generator = SequenceMaskGenerator(
             sequence_length, min_val=min_mask_length, max_val=max_mask_length, dtype=dtype)
