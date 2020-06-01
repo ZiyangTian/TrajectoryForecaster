@@ -63,7 +63,7 @@ class PreTrainer(tf.keras.Model):
         self._encoder_layer = networks.SequenceEncoder(
             num_layers=num_layers, d_model=d_model,
             num_attention_heads=num_attention_heads, conv_kernel_size=conv_kernel_size,
-            numeric_normalizer_fn=numeric_normalizer_fn, name=None)
+            numeric_normalizer_fn=numeric_normalizer_fn, name='encoder')
         self._dense_layer = tf.keras.layers.Dense(num_features, name='dense')
         self._restorer_layer = layers.FunctionWrapper(numeric_restorer_fn, name='restorer')
 
