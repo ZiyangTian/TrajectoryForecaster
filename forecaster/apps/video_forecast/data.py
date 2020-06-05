@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 
-DATA_FILE = 'data/mnist_test_seq.npy'
+DATA_FILE = '/Users/Tianziyang/projects/MovingMnist/data/mnist_test_seq.npy'
 TRAIN_EXAMPLES = 8000
 VALIDATION_EXAMPLES = 1000
 TEST_EXAMPLES = 1000
@@ -13,10 +13,10 @@ TARGET_STEPS = TIME_STEPS - INPUT_STEPS
 HEIGHT = 64
 WIDTH = 64
 
-DATA_DIR = 'data'
-TRAIN_DIR = 'data/train'
-EVAL_DIR = 'data/eval'
-TEST_DIR = 'data/test'
+DATA_DIR = '/Users/Tianziyang/projects/MovingMnist/data'
+TRAIN_DIR = '/Users/Tianziyang/projects/MovingMnist/data/train'
+EVAL_DIR = '/Users/Tianziyang/projects/MovingMnist/data/eval'
+TEST_DIR = '/Users/Tianziyang/projects/MovingMnist/data/test'
 
 BATCH_SIZE = 16
 CVAE_BATCH_SIZE = 128
@@ -99,13 +99,13 @@ def make_cvae_datasets():
     train_dataset = tf.data.TFRecordDataset(train_files).map(
         parse_tfrecord_and_convert_for_cvae, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     train_dataset = train_dataset.flat_map(lambda x: tf.data.Dataset.from_tensor_slices(x))
-    train_dataset = train_dataset.repeat().shuffle(SHUFFLE_BUFFER_SIZE).batch(CVAE_BATCH_SIZE)
+    train_dataset = train_dataset.shuffle(SHUFFLE_BUFFER_SIZE).batch(CVAE_BATCH_SIZE)
 
     test_files = tf.io.gfile.glob(os.path.join(TEST_DIR, '*.tfrecords'))
     test_dataset = tf.data.TFRecordDataset(test_files).map(
         parse_tfrecord_and_convert_for_cvae, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     test_dataset = test_dataset.flat_map(lambda x: tf.data.Dataset.from_tensor_slices(x))
-    test_dataset = test_dataset.repeat().batch(CVAE_BATCH_SIZE)
+    test_dataset = test_dataset.batch(CVAE_BATCH_SIZE)
     return train_dataset, test_dataset
 
 
