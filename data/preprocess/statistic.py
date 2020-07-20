@@ -1,3 +1,4 @@
+import glob
 import os
 import numpy as np
 import pandas as pd
@@ -61,6 +62,23 @@ def cut_csv_files(csv_files, length, cut_from='tail', multiple_mode=False, verbo
         if verbose and i % 100 == 0:
             print('{} files finished.'.format(i))
     return invalids
+
+
+def compute_mean_std(file_pattern):
+    import tensorflow as tf
+
+    # columns = ['t', 'x', 'y', 'z', 'xt', 'yt', 'zt']
+    defaults = [0., 0., 0., 0., 0., 0., 0.]
+    files = glob.glob(file_pattern)
+
+    dataset = tf.data.experimental.CsvDataset(files, defaults)
+
+    counts = dataset.reduce(0., lambda old_state, _: old_state + 1)
+    sums = dataset.reduce(defaults, lambda old_state, input_element: old_state + input_element)
+    sums2 = dataset.reduce(defaults, lambda old_state, input_element: old_state + input_element ** 2)
+    means = sums / counts
+    stds = sums2 / counts - means
+    return means, stds
 
 
 def main():

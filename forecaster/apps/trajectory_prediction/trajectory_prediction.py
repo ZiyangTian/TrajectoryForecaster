@@ -1,8 +1,9 @@
-import os
+import functools
 import tensorflow as tf
 
 from forecaster.apps import base
-from forecaster.data import sequence
+from forecaster.data import datasets
+from forecaster.data import dataset_utils
 from forecaster.models import layers
 from forecaster.models import losses
 from forecaster.models import metrics
@@ -10,8 +11,9 @@ from forecaster.models import networks
 from forecaster.models import optimizers
 
 
-def make_dataset(pattern,
-                 raw_data_spec: sequence.RawDataSpec,
+def make_dataset(file_pattern,
+                 column_names,
+                 column_defaults,
                  trajectory_feature_names,
                  other_feature_names,
                  input_sequence_length,
@@ -22,8 +24,8 @@ def make_dataset(pattern,
                  repeat_infinitely=False,
                  shuffle_buffer_size=None,
                  name=None):
-    data_files = tf.io.gfile.glob(pattern)
-    full_column_spec = sequence.SeqColumnsSpec(
+    data_files = tf.io.gfile.glob(file_pattern)
+    full_column_spec = datasets.SequenceColumnsSpec(
         list(trajectory_feature_names) + list(other_feature_names),
         input_sequence_length + output_sequence_length,
         group=True, new_names='full_sequence')
@@ -34,11 +36,22 @@ def make_dataset(pattern,
         return inputs, targets
 
     with tf.name_scope(name or 'make_dataset'):
-        dataset = sequence.sequence_dataset(
+        datasets = tf.data.Dataset.from_tensor_slices(data_files)  # 文件名 -> 数据集
+        datasets = datasets.map(
+            functools.partial(tf.data.experimental.CsvDataset, record_defaults=column_defaults, header=False),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)  # 载入文件内容
+        datasets = datasets.map(
+            functools.partial(dataset_utils.named_dataset, names=column_names),
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)  # 加入特征名
+        dataset = datasets.make_sequential_dataset(
+            datasets,
             [full_column_spec],
-            data_files, raw_data_spec,
-            shift=shift, stride=stride, shuffle_files=True,
-            name='sequence_dataset')
+            shift=shift,
+            stride=stride,
+            shuffle_buffer_size=len(data_files),
+            cycle_length=len(data_files),
+            block_length=1,
+            name=None)
         dataset = dataset.map(generate_targets, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         if repeat_infinitely:
             dataset = dataset.repeat()
@@ -128,11 +141,13 @@ class TrajectoryPrediction(base.App):
 
     @property
     def train_dataset(self):
+        raw_data_config = self._config.raw_data
         data_config = self._config.data
         train_config = self._config.run.train
         return make_dataset(
-            os.path.join(self._config.raw_data.train_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            self._config.raw_data.train_pattern,
+            raw_data_config.columns,
+            list(map(lambda x: raw_data_config.features.__getattr__(x).default, raw_data_config.columns)),
             data_config.trajectory_features,
             data_config.other_features,
             data_config.input_sequence_length,
@@ -146,11 +161,13 @@ class TrajectoryPrediction(base.App):
 
     @property
     def valid_dataset(self):
+        raw_data_config = self._config.raw_data
         data_config = self._config.data
         eval_config = self._config.run.eval
         return make_dataset(
-            os.path.join(self._config.raw_data.eval_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            self._config.raw_data.eval_pattern,
+            raw_data_config.columns,
+            list(map(lambda x: raw_data_config.features.__getattr__(x).default, raw_data_config.columns)),
             data_config.trajectory_features,
             data_config.other_features,
             data_config.input_sequence_length,
@@ -164,11 +181,13 @@ class TrajectoryPrediction(base.App):
 
     @property
     def test_dataset(self):
+        raw_data_config = self._config.raw_data
         data_config = self._config.data
         predict_config = self._config.run.predict
         return make_dataset(
-            os.path.join(self._config.raw_data.test_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            self._config.raw_data.test_pattern,
+            raw_data_config.columns,
+            list(map(lambda x: raw_data_config.features.__getattr__(x).default, raw_data_config.columns)),
             data_config.trajectory_features,
             data_config.other_features,
             data_config.input_sequence_length,

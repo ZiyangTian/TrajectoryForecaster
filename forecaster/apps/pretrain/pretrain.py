@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from forecaster.apps import base
 from forecaster.apps.pretrain import masker as _masker
-from forecaster.data import sequence
+from forecaster.data import datasets
 from forecaster.models import layers
 from forecaster.models import losses
 from forecaster.models import networks
@@ -12,7 +12,7 @@ from forecaster.models import optimizers
 
 
 def make_dataset(pattern,
-                 raw_data_spec: sequence.RawDataSpec,
+                 raw_data_spec: datasets.RawDataSpec,
                  feature_names,
                  sequence_length,
                  masker: _masker.Masker,
@@ -23,11 +23,11 @@ def make_dataset(pattern,
                  shuffle_buffer_size=None,
                  name=None):
     data_files = tf.io.gfile.glob(pattern)
-    column_spec = sequence.SeqColumnsSpec(
+    column_spec = datasets.SequenceColumnsSpec(
         feature_names, sequence_length, group=True, new_names='features')
 
     with tf.name_scope(name or 'make_dataset'):
-        dataset = sequence.sequence_dataset(
+        dataset = datasets.sequence_dataset(
             [column_spec],
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
@@ -116,7 +116,7 @@ class PreTraining(base.App):
         train_config = self._config.run.train
         return make_dataset(
             os.path.join(self._config.raw_data.train_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.sequence_length,
             _masker.Masker.from_config(mask_config),
@@ -134,7 +134,7 @@ class PreTraining(base.App):
         eval_config = self._config.run.eval
         return make_dataset(
             os.path.join(self._config.raw_data.eval_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.sequence_length,
             _masker.Masker.from_config(mask_config),
@@ -152,7 +152,7 @@ class PreTraining(base.App):
         predict_config = self._config.run.predict
         return make_dataset(
             os.path.join(self._config.raw_data.test_dir, '*.txt'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.sequence_length,
             _masker.Masker.from_config(mask_config),

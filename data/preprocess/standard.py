@@ -85,3 +85,20 @@ def split_train_test(files, prop_train, train_dir=None, test_dir=None):
         shutil.move(file, os.path.join(train_dir, os.path.split(file)[-1]))
     for file in test_files:
         shutil.move(file, os.path.join(test_dir, os.path.split(file)[-1]))
+
+
+def main():
+    import glob
+    files = glob.glob('train')
+    split_train_eval_test(
+        files, 0.8, 0.1, 0.1,
+        train_dir='',
+        eval_dir='',
+        test_dir='',
+        temp_dir=None,
+        clear_if_nonempty=True,
+        reserve_old=True)
+
+
+if __name__ == '__main__':
+    main()

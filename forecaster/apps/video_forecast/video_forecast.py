@@ -5,7 +5,7 @@ from tensorflow.python.keras.losses import LossFunctionWrapper
 from forecaster.apps.video_forecast import cvae
 from forecaster.apps.video_forecast import data
 from forecaster.apps import base
-from forecaster.data import sequence
+from forecaster.data import datasets
 from forecaster.models import layers
 from forecaster.models import losses
 from forecaster.models import metrics

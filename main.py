@@ -50,13 +50,43 @@ def monitor_test():
         overwrite=True)
 
 
-def main():
+def main1():
     import tensorflow as tf
     from forecaster.ops.mask import sequence_mask_along_axis
     # g = SequenceMaskGenerator(10, 3, 8, dtype=tf.int32)
     x = sequence_mask_along_axis((3, 2, 10), -1, 3, 8, dtype=tf.int32, scatter_mode=False)
     x = tf.transpose(x, (0, 2, 1))
     print(x.numpy())
+
+
+def main():
+    import functools
+    import glob
+    data_files = glob.glob(r'E:\S11\3_trjectories_prdict_room16\data_TrajectoryForecaster\test\*.txt')
+    columns = ['t', 'x', 'y', 'z', 'xt', 'yt', 'zt']
+    defaults = [0., 0., 0., 0., 0., 0., 0.]
+
+    datasets = tf.data.Dataset.from_tensor_slices(data_files)  # 文件名 -> 数据集
+    datasets = datasets.map(
+        functools.partial(tf.data.experimental.CsvDataset, record_defaults=defaults, header=False),
+        num_parallel_calls=tf.data.experimental.AUTOTUNE)  # 载入文件内容
+    datasets = datasets.map(
+        functools.partial(dataset_utils.named_dataset, names=columns),
+        num_parallel_calls=tf.data.experimental.AUTOTUNE)  # 加入特征名
+    columns_specs = [
+        SequenceColumnsSpec(['t', 'x'], 5, group=True, new_names='c1'),
+        SequenceColumnsSpec(['t', 'x'], 5, offset=5, group=True, new_names='c2'),
+    ]
+    dataset = make_sequential_dataset(
+        datasets,
+        columns_specs,
+        shift=2,
+        stride=3,
+        shuffle_buffer_size=None,
+        name=None)
+
+    for x in dataset:
+        tf.print(x)
 
 
 if __name__ == '__main__':

@@ -2,14 +2,14 @@ import os
 import tensorflow as tf
 
 from forecaster.apps import base
-from forecaster.data import sequence
+from forecaster.data import datasets
 from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
 
 
 def make_dataset(pattern,
-                 raw_data_spec: sequence.RawDataSpec,
+                 raw_data_spec: datasets.RawDataSpec,
                  feature_names,
                  label_names,
                  sequence_length,
@@ -20,13 +20,13 @@ def make_dataset(pattern,
                  shuffle_buffer_size=None,
                  name=None):
     data_files = tf.io.gfile.glob(pattern)
-    feature_column_spec = sequence.SeqColumnsSpec(
+    feature_column_spec = datasets.SequenceColumnsSpec(
         feature_names, sequence_length, group=True, new_names='features')
-    label_column_spec = sequence.ReducingColumnsSpec(
+    label_column_spec = datasets.ReducingColumnsSpec_1(
         label_names, rsv_pos=sequence_length - 1, group=True, new_names='labels')
 
     with tf.name_scope(name or 'make_dataset'):
-        dataset = sequence.sequence_dataset(
+        dataset = datasets.sequence_dataset(
             [feature_column_spec, label_column_spec],
             data_files, raw_data_spec,
             shift=shift, stride=stride, shuffle_files=True,
@@ -106,7 +106,7 @@ class AnomalyDetection(base.App):
         train_config = self._config.run.train
         return make_dataset(
             os.path.join(self._config.raw_data.train_dir, '*.csv'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.labels,
             data_config.sequence_length,
@@ -123,7 +123,7 @@ class AnomalyDetection(base.App):
         eval_config = self._config.run.eval
         return make_dataset(
             os.path.join(self._config.raw_data.eval_dir, '*.csv'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.labels,
             data_config.sequence_length,
@@ -140,7 +140,7 @@ class AnomalyDetection(base.App):
         predict_config = self._config.run.predict
         return make_dataset(
             os.path.join(self._config.raw_data.test_dir, '*.csv'),
-            sequence.RawDataSpec.from_config(self._config.raw_data),
+            datasets.RawDataSpec.from_config(self._config.raw_data),
             data_config.features,
             data_config.labels,
             data_config.sequence_length,

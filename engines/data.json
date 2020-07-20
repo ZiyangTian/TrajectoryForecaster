@@ -1,8 +1,8 @@
 {
     "name": "test",
-    "train_dir": "/Users/Tianziyang/projects/data_for_test",
-    "eval_dir": "/Users/Tianziyang/projects/data_for_test",
-    "test_dir": "/Users/Tianziyang/projects/data_for_test",
+    "train_pattern": "/Users/Tianziyang/projects/data_for_test/*.txt",
+    "eval_pattern": "/Users/Tianziyang/projects/data_for_test/*.txt",
+    "test_pattern": "/Users/Tianziyang/projects/data_for_test/*.txt",
 	"columns": [
         "t",
 	    "x",
