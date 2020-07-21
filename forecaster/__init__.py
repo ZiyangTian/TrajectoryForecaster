@@ -6,7 +6,7 @@ from forecaster import data
 from forecaster.data.columns_specs import ReservingColumnSpec
 from forecaster.data.columns_specs import ReducingColumnsSpec
 from forecaster.data.columns_specs import SequentialColumnsSpec
-from forecaster.data.datasets import Sequencer
+from forecaster.data.sequencer import Sequencer
 from forecaster.apps.base import get_app
 from forecaster.apps.base import app
 from forecaster.apps.base import App

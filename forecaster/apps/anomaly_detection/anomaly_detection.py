@@ -2,14 +2,14 @@ import os
 import tensorflow as tf
 
 from forecaster.apps import base
-from forecaster.data import datasets
+from forecaster.data import sequencer
 from forecaster.models import metrics
 from forecaster.models import networks
 from forecaster.models import optimizers
 
 
 def make_dataset(pattern,
-                 raw_data_spec: datasets.RawDataSpec,
+                 raw_data_spec,
                  feature_names,
                  label_names,
                  sequence_length,

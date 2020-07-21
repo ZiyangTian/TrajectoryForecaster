@@ -1,9 +1,4 @@
 """ Dataset utilities. """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import functools
 import tensorflow as tf
 
@@ -54,10 +49,8 @@ def feature_selected_dataset(dataset, selected_feature_names, output_is_tuple=Fa
     return dataset.map(map_fn, num_parallel_calls=num_parallel_calls)
 
 
-def windowed_dataset(dataset: tf.data.Dataset,
-                     size, shift=None, stride=1,
-                     drop_remainder=True):
-    """Create a `Dataset` by windowing a sequential dataset.
+def windowed_dataset(dataset, size, shift=None, stride=1, drop_remainder=True):
+    """Create a windowed `Dataset`.
         Arguments:
             dataset: A `Dataset` of output shape ((...), (...), ... (...)) or a `dict`
                 of the same.

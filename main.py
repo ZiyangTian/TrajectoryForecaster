@@ -52,16 +52,31 @@ def monitor_test():
 
 def main1():
     import tensorflow as tf
-    from forecaster.ops.mask import sequence_mask_along_axis
-    # g = SequenceMaskGenerator(10, 3, 8, dtype=tf.int32)
-    x = sequence_mask_along_axis((3, 2, 10), -1, 3, 8, dtype=tf.int32, scatter_mode=False)
-    x = tf.transpose(x, (0, 2, 1))
-    print(x.numpy())
+    import forecaster
+    dataset1 = tf.data.Dataset.from_tensor_slices(
+        {
+            'a': list(float(i) for i in range(10)),
+            'b': list(float(i) for i in range(10, 20)),
+            'c': [0.1 * i for i in range(10)]})
+    dataset2 = tf.data.Dataset.from_tensor_slices(
+        {
+            'a': list(float(i) for i in range(10, 20)),
+            'b': list(float(i) for i in range(20, 30)),
+            'c': [1. + 0.1 * i for i in range(10)]})
+    datasets = tf.data.Dataset.from_tensor_slices([1, 2]).map(lambda x: dataset1 if x == 1 else dataset2)
+    cs1 = forecaster.SequentialColumnsSpec(['a', 'c'], 4, new_columns='cs1')
+    cs2 = forecaster.ReducingColumnsSpec(['a'], 'mean', 1, 3, new_columns='cs2')
+    cs3 = forecaster.ReservingColumnSpec(['b'], 1, new_columns='cs3')
+    sequencer = forecaster.Sequencer([cs1, cs2, cs3], datasets)
+    dataset = sequencer.sequence_dataset(1, 2, 2, 2)
+    for x in dataset:
+        tf.print(x)
 
 
 def main():
     import functools
     import glob
+
     data_files = glob.glob(r'E:\S11\3_trjectories_prdict_room16\data_TrajectoryForecaster\test\*.txt')
     columns = ['t', 'x', 'y', 'z', 'xt', 'yt', 'zt']
     defaults = [0., 0., 0., 0., 0., 0., 0.]
@@ -90,4 +105,4 @@ def main():
 
 
 if __name__ == '__main__':
-    monitor_test()
+    main1()

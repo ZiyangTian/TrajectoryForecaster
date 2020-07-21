@@ -7,7 +7,7 @@ import attrdict
 import tensorflow as tf
 
 from forecaster import version
-from forecaster.data import datasets
+from forecaster.data import sequencer
 from forecaster.run import distribute
 from forecaster.run import flags
 

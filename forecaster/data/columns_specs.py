@@ -11,17 +11,17 @@ class ColumnsSpec(object):
         self._raw_columns = typing_utils.normalize_list_of_type(raw_columns, str)
         self._group = group
         self._new_columns = self._allocate_new_names(new_columns)
-        self._name = name or 'ColumnSpec'
+        self._name = name or 'ColumnsSpec'
 
     @abc.abstractmethod
-    def call(self, sequence):
+    def convert_at(self, sequence):
         """Convert a sequence tensor for creating the new dataset.
             Arguments:
                 sequence: A `Tensor` of shape (`self.max_offset`, ...).
             Returns:
                 A converted `Tensor` of determined shape.
         """
-        raise NotImplementedError('ColumnSpec.call')
+        raise NotImplementedError('ColumnsSpec.convert')
 
     @property
     @abc.abstractmethod
@@ -40,7 +40,7 @@ class ColumnsSpec(object):
     def name(self):
         return self._name
 
-    def __call__(self, windowed_dict):
+    def convert(self, windowed_dict):
         """Map from a `dict` of windowed feature tensors to converted feature tensors.
             Arguments:
                 windowed_dict: A `dict` from `str` feature names to feature `Tensor`s.
@@ -48,7 +48,7 @@ class ColumnsSpec(object):
                 A `dict` from `str` feature names to converted feature `Tensor`s.
         """
         with tf.name_scope('%s_call' % self._name):
-            processed_features = map(lambda k: self.call(windowed_dict[k]), self._raw_columns)
+            processed_features = map(lambda k: self.convert_at(windowed_dict[k]), self._raw_columns)
             if self._group:
                 processed_features = {self._new_columns: tf.stack(list(processed_features), axis=-1)}
             else:
@@ -103,7 +103,7 @@ class SequentialColumnsSpec(ColumnsSpec):
     def max_offset(self):
         return self._sequence_length + self._offset
 
-    def call(self, sequence):
+    def convert_at(self, sequence):
         return sequence[self._offset: self._offset + self._sequence_length]
 
 
@@ -136,15 +136,15 @@ class ReducingColumnsSpec(ColumnsSpec):
     def max_offset(self):
         return self._end
 
-    def call(self, sequence):
+    def convert_at(self, sequence):
         return self._reduction_fn(sequence[self._begin: self._end])
 
     @staticmethod
     def _get_reduction_fn(reduction):
         if callable(reduction):
             return reduction
-        identification = reduction.lower()
 
+        identification = reduction.lower()
         if identification == 'sum':
             return tf.reduce_sum
         if identification in {'average', 'mean'}:
@@ -159,6 +159,7 @@ class ReducingColumnsSpec(ColumnsSpec):
             return tf.reduce_any
         if identification in {'prod', 'product'}:
             return tf.reduce_prod
+        raise ValueError('Unexpected reduction function key %s.' % reduction)
 
 
 class ReservingColumnSpec(ColumnsSpec):
@@ -177,12 +178,12 @@ class ReservingColumnSpec(ColumnsSpec):
     """
     def __init__(self, raw_columns, position=0, group=True, new_columns=None, name=None):
         self._position = position
-        super(ColumnsSpec, self).__init__(
-            raw_columns, group=group, new_names=new_columns, name=name or 'ReservingColumnSpec')
+        super(ReservingColumnSpec, self).__init__(
+            raw_columns, group=group, new_columns=new_columns, name=name or 'ReservingColumnSpec')
 
     @property
     def max_offset(self):
         return self._position + 1
 
-    def call(self, sequence):
+    def convert_at(self, sequence):
         return sequence[self._position]

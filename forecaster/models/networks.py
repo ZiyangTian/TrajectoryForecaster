@@ -99,13 +99,9 @@ class SequenceEncoder(tf.keras.layers.Layer):
                  num_layers, d_model,
                  num_attention_heads,
                  conv_kernel_size,
-                 numeric_normalizer_fn=None,
                  name=None,
                  **kwargs):
         super(SequenceEncoder, self).__init__(name=name or 'sequence_encoder', **kwargs)
-        self._numeric_normalizer = layers.FunctionWrapper(
-            tf.identity if numeric_normalizer_fn is None else numeric_normalizer_fn,
-            name='numeric_normalizer')
         self._diff = self._diff = layers.FunctionWrapper(
             functools.partial(diff.diff_1_pad, axis=-2, padding_value=None), name='diff')
         self._sequence_concatenate = tf.keras.layers.Concatenate(axis=-1, name='sequence_concatenate')
@@ -113,46 +109,26 @@ class SequenceEncoder(tf.keras.layers.Layer):
         self._mask_embedding = tf.keras.layers.Dense(d_model, name='mask_embedding')
         self._embedding_concatenate = tf.keras.layers.Concatenate(axis=-1, name='embedding_concatenate')
         self._dense = tf.keras.layers.Dense(d_model, name='dense')
-        encoder_layers = []
-        for i in range(num_layers):
-            encoder_layers.append(
-                EncoderLayer(d_model, num_attention_heads, conv_kernel_size, name='layer_{}'.format(i)))
-        self._encoder_layers = tf.keras.Sequential(encoder_layers, name='encoder_layers')
+        self._encoder_layers = [
+            EncoderLayer(d_model, num_attention_heads, conv_kernel_size, name='layer_{}'.format(i))
+            for i in range(num_layers)]
 
     def call(self, inputs, mask=None, **kwargs):
-        """
-
-        :param inputs:
-        :param mask: 0 for mask, 1 for not mask.
-        :param kwargs:
-        :return:
-        """
-        del kwargs
-        if isinstance(inputs, (tuple, list)):
-            inputs, mask = tuple(inputs)
-            if mask is not None:
-                tf.compat.v1.logging.warn('Mask is already include in argument `inputs`, '
-                                          'argument `mask` is neglected.')
-        with tf.name_scope('apply_mask'):
+        with tf.name_scope('mask'):
             if mask is None:
                 mask = tf.ones_like(inputs, dtype=inputs.dtype)
             else:
                 mask = tf.broadcast_to(mask, tf.shape(inputs))
                 inputs = tf.where(tf.cast(mask, tf.bool), inputs, tf.zeros_like(inputs, dtype=inputs.dtype))
                 mask = tf.cast(mask, dtype=inputs.dtype)
-
-        if self._numeric_normalizer is not None:
-            inputs = self._numeric_normalizer(inputs)
-        diff_inputs = self._diff(inputs)
-        sequence_inputs = self._sequence_concatenate([inputs, diff_inputs])
-        sequence_embedding = self._sequence_embedding(sequence_inputs)
-        mask_embedding = self._mask_embedding(mask)
-        encoder_layer_inputs = self._embedding_concatenate([sequence_embedding, mask_embedding])
-        encoder_layer_inputs = self._dense(encoder_layer_inputs)
-        outputs = self._encoder_layers(encoder_layer_inputs)
+        with tf.name_scope('inputs'):
+            diff_inputs = self._diff(inputs)
+            sequence_inputs = self._sequence_concatenate([inputs, diff_inputs])
+            sequence_embedding = self._sequence_embedding(sequence_inputs)
+            mask_embedding = self._mask_embedding(mask)
+            encoder_layer_inputs = self._embedding_concatenate([sequence_embedding, mask_embedding])
+            outputs = self._dense(encoder_layer_inputs)
+        with tf.name_scope('encoder'):
+            for layer in self._encoder_layers:
+                outputs = layer(outputs)
         return outputs
-
-
-if __name__ == '__main__':
-    layer = SequenceEncoder(3, 64, 4, 10, input_shape=(60, 6))
-    print(layer.count_params())

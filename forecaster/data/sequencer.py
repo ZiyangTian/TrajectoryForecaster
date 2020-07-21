@@ -1,9 +1,4 @@
-""" Create sequence dataset from original CSV data files. """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+"""Sequencer for creating sequence datasets. """
 import numpy as np
 import tensorflow as tf
 
@@ -13,7 +8,7 @@ from utils import typing as typing_utils
 
 
 class Sequencer(object):
-    """Sequencer that map a set of _datasets to a sequenced dataset.
+    """Sequencer that map a set of datasets to a sequenced dataset.
         Arguments:
             columns_specs: A `list` of `ColumnsSpec`s.
             datasets: A `Dataset` of `dict` structured `Dataset`.
@@ -66,69 +61,72 @@ class Sequencer(object):
         self.from_files(files, load_fn, num_parallel_calls=num_parallel_calls)
         return self
 
-    def generate(self,
-                 columns_specs,
-                 shift=None,
-                 stride=1,
-                 cycle_length=1,
-                 block_length=1,
-                 num_parallel_calls=None,
-                 deterministic=None,
-                 name=None):
-        """Make sequential dataset from multiple independent datasets.
+    def sequence_dataset(self,
+                         shift=None,
+                         stride=1,
+                         cycle_length=1,
+                         block_length=1,
+                         num_parallel_calls=None):
+        """Convert datasets to a single dataset with sequence features.
             Arguments:
-                dataset_of_sequences: A `Dataset` of `dict` structured `Dataset`s, each of
-                    which represents a sequence.
-                columns_specs: A(n) (container of) `ColumnsSpec` instances.
                 shift: An `int`, use sample every this number of raw samples, see
                     `tf.data.Dataset.generate`.
                 stride: A `int`, the stride of the input elements in the sliding generate, see
                     `tf.data.Dataset.generate`.
-                name: A `str`, OP name, defaults to "multi_sequence_dataset".
-                interleave_kwargs: Keyword arguments except `map_func` to apply `interleave` method.
-                    This is useful to add randomness to the generated dataset.
+                cycle_length: Argument for interleaving datasets. The number of input elements
+                    that will be processed concurrently. If not set, the tf.data runtime decides
+                    what it should be based on available CPU. If num_parallel_calls is set to
+                    `tf.data.experimental.AUTOTUNE`, the cycle_length argument identifies the
+                    maximum degree of parallelism.
+                block_length: Argument for interleaving datasets. The number of consecutive
+                    elements to produce from each input element before cycling to another input
+                    element. If not set, defaults to 1.
+                num_parallel_calls: Argument for interleaving datasets. If specified, the
+                    implementation creates a threadpool, which is used to fetch inputs from
+                    cycle elements asynchronously and in parallel. The default behavior is to
+                    fetch inputs from cycle elements synchronously with no parallelism. If the
+                    value `tf.data.experimental.AUTOTUNE` is used, then the number of parallel
+                    calls is set dynamically based on available CPU.
             Returns:
-                A multi-sequence `Dataset`.
+                A `Dataset`.
         """
         if self._datasets is None:
             raise RuntimeError('Datasets have not been defined.')
-        columns_specs = typing_utils.normalize_list_of_type(columns_specs, _columns_specs.ColumnsSpec)
-        used_column_names = set(sum(map(lambda c: c.raw_columns, columns_specs), []))
+        used_column_names = set(sum(map(lambda c: c.raw_columns, self._columns_specs), []))
         self._check_repetitive_new_names()
-        max_offset = max(map(lambda c: c.max_offset, columns_specs))
+        max_offset = max(map(lambda c: c.max_offset, self._columns_specs))
 
-        def feature_selected_map_fn(dataset):
-            dataset = dataset_utils.feature_selected_dataset(dataset, used_column_names, output_is_tuple=False)
-            return dataset
+        def feature_selected_map_fn(d):
+            return dataset_utils.feature_selected_dataset(d, used_column_names, output_is_tuple=False)
 
-        def process_map_fn(windowed_dict):
+        def convert_map_fn(windowed_dict):
             columns = {}
-            for spec in columns_specs:
-                columns.update(spec.__call__(windowed_dict))
+            for spec in self._columns_specs:
+                columns.update(spec.convert(windowed_dict))
             return columns
 
-        with tf.name_scope(name or 'make_sequential_dataset'):
-            datasets = self._datasets.map(feature_selected_map_fn, num_parallel_calls=num_parallel_calls)
-            sequential_dataset = datasets.interleave(
-                lambda dataset: dataset_utils.windowed_dataset(
-                    dataset, max_offset, shift=shift, stride=stride, drop_remainder=True),
-                cycle_length=cycle_length,
-                block_length=block_length,
-                num_parallel_calls=num_parallel_calls,
-                deterministic=deterministic)
-            sequential_dataset = sequential_dataset.map(process_map_fn, num_parallel_calls=num_parallel_calls)
-        return sequential_dataset
+        dataset = self._datasets.map(feature_selected_map_fn, num_parallel_calls=num_parallel_calls)
+        dataset = dataset.interleave(
+            lambda d: dataset_utils.windowed_dataset(
+                d, max_offset, shift=shift, stride=stride, drop_remainder=True),
+            cycle_length=cycle_length,
+            block_length=block_length,
+            num_parallel_calls=num_parallel_calls)
+        dataset = dataset.map(convert_map_fn, num_parallel_calls=num_parallel_calls)
+        return dataset
 
-    def make_multi_sequence_dataset(self,
-                                    dataset_of_sequences,
-                                    columns_specs,
-                                    num_sequences,
-                                    sequence_id_name='seq_id',
-                                    shift=None,
-                                    stride=1,
-                                    shuffle_buffer_size=None,
-                                    repeat_sequences=1,
-                                    name=None):
+    def multi_sequence_dataset(self,
+                               dataset_of_sequences,
+                               columns_specs,
+                               num_sequences,
+                               sequence_id_name='seq_id',
+                               shift=None,
+                               stride=1,
+                               shuffle_buffer_size=None,
+                               repeat_sequences=1,
+                               num_parallel_calls=None,
+                               name=None):
+
         """
         Create multi-sequence dataset from CSV data files.
             Arguments:
@@ -142,13 +140,14 @@ class Sequencer(object):
                 shuffle_buffer_size: A `bool`, whether to shuffle data files.
                 repeat_sequences: An `int`, the number of times the data files should be repeated. Defaults
                     to infinite times.
+                num_parallel_calls:
                 name: A `str`, OP name, defaults to "multi_sequence_dataset".
             Returns:
                 A multi-sequence `Dataset`.
         """
         columns_specs = typing_utils.normalize_list_of_type(columns_specs, _columns_specs.ColumnsSpec)
         used_column_names = set(sum(map(lambda c: c.raw_columns, columns_specs), []))
-        self._check_repetitive_new_names(columns_specs, banned=sequence_id_name)
+        self._check_repetitive_new_names(columns_specs)  # , banned=sequence_id_name)
         max_offset = max(map(lambda c: c.max_offset, columns_specs))
 
         def feature_selected_map_fn(dataset):
@@ -161,7 +160,7 @@ class Sequencer(object):
         def process_map_fn(windowed_dict):
             columns = {}
             for spec in columns_specs:
-                columns.update(spec.__call__(windowed_dict))
+                columns.update(spec.convert(windowed_dict))
             return columns
 
         def update_id_map_fn(id_tensor, features_dict):
@@ -176,17 +175,17 @@ class Sequencer(object):
                 lambda dataset: dataset_utils.windowed_dataset(
                     dataset, max_offset, shift=shift, stride=stride, drop_remainder=True),
                 cycle_length=num_sequences, block_length=1, deterministic=True)
-            sequential_dataset = sequential_dataset.map(process_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            sequential_dataset = sequential_dataset.map(process_map_fn, num_parallel_calls=num_parallel_calls)
             sequential_dataset = sequential_dataset.batch(num_sequences).take(min_length)
 
             ids = id_batch.repeat(min_length)
             dataset_with_id = tf.data.Dataset.zip((ids, sequential_dataset))
-            dataset_with_id = dataset_with_id.map(update_id_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            dataset_with_id = dataset_with_id.map(update_id_map_fn, num_parallel_calls=num_parallel_calls)
             return dataset_with_id
 
         with tf.name_scope(name or 'multi_sequence_dataset'):
             dataset_of_sequences = dataset_of_sequences.map(
-                feature_selected_map_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                feature_selected_map_fn, num_parallel_calls=num_parallel_calls)
             num_files = dataset_length_map_fn(dataset_of_sequences)
             id_dataset = tf.data.Dataset.range(num_files)
             dataset_of_sequences_with_ids = tf.data.Dataset.zip((dataset_of_sequences, id_dataset))

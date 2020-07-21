@@ -2,7 +2,7 @@ import functools
 import tensorflow as tf
 
 from forecaster.apps import base
-from forecaster.data import datasets
+from forecaster.data import sequencer
 from forecaster.data import dataset_utils
 from forecaster.models import layers
 from forecaster.models import losses

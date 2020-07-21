@@ -73,12 +73,11 @@ class App(object):
         raise NotImplementedError('App.valid_dataset')
 
     @property
-    @abc.abstractmethod
     def test_dataset(self):
         """Returns a `Dataset` for training, which can
             be used in a `tf.keras.Model`. See `tf.keras.Model.evaluate`.
         """
-        return NotImplementedError('App.test_dataset')
+        return None
 
     @property
     def config(self):

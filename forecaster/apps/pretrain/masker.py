@@ -3,7 +3,7 @@ import os
 import tensorflow as tf
 
 from forecaster.apps import base
-from forecaster.data import datasets
+from forecaster.data import sequencer
 from forecaster.ops import mask
 from forecaster.models import networks
 from forecaster.models import optimizers
